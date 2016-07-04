@@ -1,0 +1,170 @@
+"""
+Name:       application_creator.py
+Purpose:    Creates applications from packages
+Author:     PNDA team
+
+Created:    21/03/2016
+
+Copyright (c) 2016 Cisco and/or its affiliates.
+
+This software is licensed to you under the terms of the Apache License, Version 2.0 (the "License").
+You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+The code, technical concepts, and all information contained herein, are the property of Cisco Technology, Inc.
+and/or its affiliated entities, under various laws including copyright, international treaties, patent,
+and/or contract. Any use of the material herein must be in accordance with the terms of the License.
+All rights not expressly granted by the License are reserved.
+
+Unless required by applicable law or agreed to separately in writing, software distributed under the
+License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+either express or implied.
+"""
+
+import tarfile
+import os
+import io
+import json
+import re
+
+import shutil
+import logging
+import uuid
+from importlib import import_module
+from exceptiondef import FailedValidation, FailedCreation
+
+
+class ApplicationCreator(object):
+
+    def __init__(self, config, environment, service):
+        self._config = config
+        self._environment = environment
+        self._service = service
+        self._component_creators = {}
+        self._name_regex = re.compile('')
+
+    def create_application(self, package_data, package_metadata, application_name, property_overrides):
+
+        logging.debug("create_application: %s", application_name)
+
+        if not re.match('^[a-zA-Z0-9_-]+$', application_name):
+            raise FailedCreation('Application name %s may only contain a-z A-Z 0-9 - _' % application_name)
+
+        stage_path = self._stage_package(package_data)
+
+        # create each class of components in the package, aggregating any
+        # component specific return data for destruction
+        create_metadata = {}
+        try:
+            for component_type, components in package_metadata['component_types'].iteritems():
+                creator = self._load_creator(component_type)
+                result = creator.create_components(stage_path,
+                                                   application_name,
+                                                   components,
+                                                   property_overrides.get(component_type))
+                create_metadata[component_type] = result
+        finally:
+            # clean up staged package data
+            shutil.rmtree(stage_path)
+
+        return create_metadata
+
+    def destroy_application(self, application_name, application_create_data):
+
+        logging.debug("destroy_application: %s %s", application_name, application_create_data)
+
+        for component_type, component_create_data in application_create_data.iteritems():
+            creator = self._load_creator(component_type)
+            creator.destroy_components(application_name, component_create_data)
+
+    def start_application(self, application_name, application_create_data):
+
+        logging.debug("start_application: %s %s", application_name, application_create_data)
+
+        for component_type, component_create_data in application_create_data.iteritems():
+            creator = self._load_creator(component_type)
+            creator.start_components(application_name, component_create_data)
+
+    def stop_application(self, application_name, application_create_data):
+
+        logging.debug("stop_application: %s %s", application_name, application_create_data)
+
+        for component_type, component_create_data in application_create_data.iteritems():
+            creator = self._load_creator(component_type)
+            creator.stop_components(application_name, component_create_data)
+
+    def validate_package(self, package_name, package_metadata):
+
+        logging.debug("validate_package: %s", json.dumps(package_metadata))
+
+        result = {}
+        self._validate_name(package_name, package_metadata)
+        for component_type, component_metadata in package_metadata['component_types'].iteritems():
+            creator = self._load_creator(component_type)
+            validation_errors = creator.validate_components(component_metadata)
+            if len(validation_errors) > 0:
+                result[component_type] = validation_errors
+
+        if len(result) > 0:
+            raise FailedValidation(result)
+
+    def _validate_name(self, package_name, package_metadata):
+
+        parts = package_name.split('-')
+        if len(parts) < 2:
+            raise FailedValidation("package name must be of the form name-version e.g. name-version.1.2.3 but found %s" % package_name)
+
+        version_parts = parts[-1].split('.')
+        if len(version_parts) < 3:
+            raise FailedValidation("version must be a three part major.minor.patch e.g. 1.2.3 but found %s" % parts[-1])
+
+        if package_name != package_metadata['package_name']:
+            raise FailedValidation("package name must match name of enclosed folder but found %s and %s" % (package_name, package_metadata['package_name']))
+
+    def get_application_runtime_details(self, application_name, application_create_data):
+
+        logging.debug("get_application_runtime_details: %s %s", application_name, application_create_data)
+
+        details = {}
+        details['yarn_ids'] = []
+        for component_type, component_create_data in application_create_data.iteritems():
+            creator = self._load_creator(component_type)
+            type_details = creator.get_component_runtime_details(component_create_data)
+            details['yarn_ids'].extend(type_details['yarn_ids'])
+        return details
+
+    def _load_creator(self, component_type):
+
+        print "_load_creator", component_type
+
+        creator = self._component_creators.get(component_type)
+
+        if creator is None:
+
+            module = '%s.%s' % (self._config['plugins_path'], component_type)
+            cls = '%s%sCreator' % (component_type[0].upper(), component_type[1:])
+            try:
+                module = import_module("plugins.%s" % component_type)
+                self._component_creators[component_type] = getattr(
+                    module, cls)(self._config, self._environment, self._service)
+                creator = self._component_creators[component_type]
+            except ImportError as exception:
+                logging.error(
+                    'Unable to load Creator for component type "%s" [%s]',
+                    component_type,
+                    exception)
+
+        return creator
+
+    def _stage_package(self, package_data):
+
+        logging.debug("_stage_package")
+
+        if not os.path.isdir(self._config['stage_root']):
+            os.mkdir(self._config['stage_root'])
+
+        file_like_object = io.BytesIO(package_data)
+        tar = tarfile.open(fileobj=file_like_object)
+        stage_path = "%s/%s" % (self._config['stage_root'], uuid.uuid4())
+        tar.extractall(path=stage_path)
+        file_like_object.close()
+        return stage_path

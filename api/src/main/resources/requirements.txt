@@ -1,0 +1,8 @@
+pywebhdfs==0.4.0
+cm-api==8.0.0
+spur==0.3.12
+starbase==0.3.2
+pyhs2==0.6.0
+happybase==0.9
+tornado-cors==0.6.0
+requests==2.9.0

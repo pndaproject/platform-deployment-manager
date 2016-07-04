@@ -1,0 +1,29 @@
+{
+    "FsRepository": {
+        "container": {
+            "path": "/tmp/packages/"
+        }
+    },
+    "HDFSRegistrar": {
+        "records_path": "user/deployment/record.json",
+        "webhdfs_user": "hdfs"
+    },
+    "environment": {
+        "queue_name":"default",
+        "cloudera_manager_host" : "192.168.101.145",
+        "cloudera_manager_username" : "admin",
+        "cloudera_manager_password" : "admin",
+        "cluster_root_user" : "cloud-user",
+        "cluster_private_key" : "./dm.pem",
+        "namespace" : "platform_app"
+    },
+    "config": {
+        "stage_root": "stage",
+        "plugins_path": "plugins",
+        "log_level":"INFO",
+        "application_callback": "",
+        "package_callback": "",
+        "deployer_thread_limit" : 100,
+        "package_repository": "http://localhost:8888"
+    }
+}

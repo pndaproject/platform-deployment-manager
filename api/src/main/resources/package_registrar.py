@@ -1,0 +1,140 @@
+"""
+Name:       package_registrar.py
+Purpose:    Stores packages and their metadata in hbase
+Author:     PNDA team
+
+Created:    21/03/2016
+
+Copyright (c) 2016 Cisco and/or its affiliates.
+
+This software is licensed to you under the terms of the Apache License, Version 2.0 (the "License").
+You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+The code, technical concepts, and all information contained herein, are the property of Cisco Technology, Inc.
+and/or its affiliated entities, under various laws including copyright, international treaties, patent,
+and/or contract. Any use of the material herein must be in accordance with the terms of the License.
+All rights not expressly granted by the License are reserved.
+
+Unless required by applicable law or agreed to separately in writing, software distributed under the
+License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+either express or implied.
+"""
+
+import logging
+import json
+import happybase
+from happybase.hbase.ttypes import AlreadyExists
+
+from package_parser import PackageParser
+
+
+class HbasePackageRegistrar(object):
+    COLUMN_DEPLOY_STATUS = "cf:deploy_status"
+
+    def __init__(self, hbase_host):
+        self._hbase_host = hbase_host
+        self._parser = PackageParser()
+        self._table_name = 'platform_packages'
+        if self._hbase_host is not None:
+            connection = happybase.Connection(self._hbase_host)
+            try:
+                connection.create_table(self._table_name, {'cf': dict()})
+                logging.debug("packages table created")
+            except AlreadyExists:
+                logging.debug("packages table exists")
+            finally:
+                connection.close()
+
+    def set_package(self, package_name, package_data):
+        logging.debug("Storing %s, %s bytes", package_name, len(package_data))
+        metadata = self._parser.get_package_metadata(package_data)
+        key, data = self.generate_record(metadata, package_data)
+        self._write_to_db(key, data)
+
+    def set_package_deploy_status(self, package_name, deploy_status):
+        """
+        Stores information about the progress of the deploy process of the package
+        :param deploy_status: the state to store
+        """
+        logging.debug("Storing state for %s: %s", package_name, str(deploy_status))
+        state_as_string = json.dumps(deploy_status)
+        self._write_to_db(package_name, {self.COLUMN_DEPLOY_STATUS: state_as_string})
+
+    def delete_package(self, package_name):
+        logging.debug("Deleting %s", package_name)
+        connection = happybase.Connection(self._hbase_host)
+        try:
+            table = connection.table(self._table_name)
+            table.delete(package_name)
+        finally:
+            connection.close()
+
+    def get_package_data(self, package_name):
+        logging.debug("Reading %s", package_name)
+        package_data = self._read_from_db(package_name, ['cf:package_data'])
+        if len(package_data) == 0:
+            return None
+        return package_data['cf:package_data']
+
+    def get_package_metadata(self, package_name):
+        logging.debug("Reading %s", package_name)
+        package_data = self._read_from_db(
+            package_name, ['cf:metadata', 'cf:name', 'cf:version'])
+        if len(package_data) == 0:
+            return None
+        return {"metadata": json.loads(package_data["cf:metadata"]), "name": package_data[
+            "cf:name"], "version": package_data["cf:version"]}
+
+    def package_exists(self, package_name):
+        logging.debug("Checking %s", package_name)
+        package_data = self._read_from_db(package_name, ['cf:name'])
+        return len(package_data) > 0
+
+    def get_package_deploy_status(self, package_name):
+        """
+        :param package_name: the package name to check status for
+        :return: The last reported progress of the deploy process for the current package
+        """
+        logging.debug("Checking %s", package_name)
+        package_data = self._read_from_db(package_name, columns=[self.COLUMN_DEPLOY_STATUS])
+        if len(package_data) == 0:
+            return None
+        # all status is stored as json, so parse it and return it
+        deploy_status_as_string = package_data[self.COLUMN_DEPLOY_STATUS]
+        return json.loads(deploy_status_as_string)
+
+    def list_packages(self):
+        logging.debug("List all packages")
+
+        connection = happybase.Connection(self._hbase_host)
+        try:
+            table = connection.table(self._table_name)
+            result = [key for key, _ in table.scan(columns=['cf:name'])]
+        finally:
+            connection.close()
+        return result
+
+    def generate_record(self, metadata, package_data):
+        return metadata["package_name"], {
+            'cf:name': '-'.join(metadata["package_name"].split("-")[:-1]),
+            'cf:version': metadata["package_name"].split("-")[-1],
+            'cf:metadata': json.dumps(metadata),
+            'cf:package_data': package_data
+        }
+
+    def _read_from_db(self, key, columns):
+        connection = happybase.Connection(self._hbase_host)
+        try:
+            table = connection.table(self._table_name)
+            data = table.row(key, columns=columns)
+        finally:
+            connection.close()
+        return data
+
+    def _write_to_db(self, key, data):
+        connection = happybase.Connection(self._hbase_host)
+        try:
+            table = connection.table(self._table_name)
+            table.put(key, data)
+        finally:
+            connection.close()
