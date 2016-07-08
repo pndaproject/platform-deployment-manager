@@ -1,9 +1,7 @@
 node {
-   // Mark the code build 'stage'
-   stage 'Build'
 
+   stage 'Build'
    def workspace = pwd() 
-   def branch = env.BRANCH_NAME
 
    sh '''
    	echo $PWD
@@ -14,7 +12,8 @@ node {
 
    stage 'Test'
    sh '''
-	  cd $PWD@script/api/src/main/resources/; pylint_wrapper.py 10
+	  cd $PWD@script/api/src/main/resources/; 
+     pylint_wrapper.py 10
 	  nosetests test_*.py
    '''
 
