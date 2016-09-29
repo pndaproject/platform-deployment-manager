@@ -31,7 +31,6 @@ from tornado.ioloop import IOLoop
 from tornado.web import asynchronous
 from tornado.options import define, options
 
-import repository
 import package_registrar
 import application_registrar
 import deployer_utils
