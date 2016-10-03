@@ -31,7 +31,6 @@ from tornado.ioloop import IOLoop
 from tornado.web import asynchronous
 from tornado.options import define, options
 
-import repository
 import package_registrar
 import application_registrar
 import deployer_utils
@@ -39,7 +38,7 @@ import deployment_manager
 from deployer_system_test import DeployerRestClientTester
 from exceptiondef import NotFound, ConflictingState, FailedValidation, FailedCreation
 from async_dispatcher import AsyncDispatcher
-from package_repo_rest_client import PacakgeRepoRestClient
+from package_repo_rest_client import PackageRepoRestClient
 
 options.logging = None
 
@@ -298,9 +297,8 @@ def main():
 
     deployer_utils.fill_hadoop_env(config['environment'])
 
-    package_repository = PacakgeRepoRestClient(config['config']["package_repository"])
-    repo = repository.SwiftRepository(package_repository)
-    dm = deployment_manager.DeploymentManager(repo,
+    package_repository = PackageRepoRestClient(config['config']["package_repository"])
+    dm = deployment_manager.DeploymentManager(package_repository,
                                               package_registrar.HbasePackageRegistrar(
                                                   config['environment']['hbase_rest_server']),
                                               application_registrar.HbaseApplicationRegistrar(

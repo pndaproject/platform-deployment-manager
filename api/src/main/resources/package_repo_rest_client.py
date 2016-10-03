@@ -24,7 +24,7 @@ import requests
 from  exceptiondef import NotFound
 
 
-class PacakgeRepoRestClient(object):
+class PackageRepoRestClient(object):
     def __init__(self, api_url):
         """
         A client implementation for the package repository API

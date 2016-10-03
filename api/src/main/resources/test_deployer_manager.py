@@ -551,7 +551,7 @@ class DeploymentManagerTest(unittest.TestCase):
         package_callback_name = "package_callback"
         self.mock_config[package_callback_name] = package_callback_name
         self.mock_package_registar.self.package_exists = Mock(return_value=False)
-        self.mock_repository.download_package.return_value = 'abcd'
+        self.mock_repository.get_package.return_value = 'abcd'
 
         class MockDeploymentManager(DeploymentManager):
             def create_mocks(self):
@@ -629,7 +629,7 @@ class DeploymentManagerTest(unittest.TestCase):
         }]
 
         repository = Mock()
-        repository.list_packages.return_value = expected_packages
+        repository.get_package_list.return_value = expected_packages
 
         package_registrar = Mock()
         application_registrar = Mock()

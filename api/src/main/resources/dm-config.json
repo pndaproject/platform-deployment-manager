@@ -1,9 +1,4 @@
 {
-    "FsRepository": {
-        "container": {
-            "path": "/tmp/packages/"
-        }
-    },
     "HDFSRegistrar": {
         "records_path": "user/deployment/record.json",
         "webhdfs_user": "hdfs"
