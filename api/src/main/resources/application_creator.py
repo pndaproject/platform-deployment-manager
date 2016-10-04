@@ -31,6 +31,7 @@ import logging
 import uuid
 from importlib import import_module
 from exceptiondef import FailedValidation, FailedCreation
+from deployer_utils import HDFS
 
 
 class ApplicationCreator(object):
@@ -41,6 +42,9 @@ class ApplicationCreator(object):
         self._service = service
         self._component_creators = {}
         self._name_regex = re.compile('')
+        self._hdfs_client = HDFS(environment['webhdfs_host'],
+                                 environment['webhdfs_port'],
+                                 'hdfs')
 
     def create_application(self, package_data, package_metadata, application_name, property_overrides):
 
@@ -75,6 +79,11 @@ class ApplicationCreator(object):
         for component_type, component_create_data in application_create_data.iteritems():
             creator = self._load_creator(component_type)
             creator.destroy_components(application_name, component_create_data)
+
+        local_path = '/opt/%s/%s/' % (self._service, application_name)
+        if os.path.isdir(local_path):
+            os.rmdir(local_path)
+        self._hdfs_client.remove('/user/%s' % application_name, recursive=False)
 
     def start_application(self, application_name, application_create_data):
 

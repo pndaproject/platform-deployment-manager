@@ -338,13 +338,15 @@ class ApplicationCreatorTests(unittest.TestCase):
         creator.validate_package('test-package-1.0.2', {"package_name": "test-package-1.0.2", "component_types": {}})
 
     # pylint: disable=unused-argument
+    @patch('deployer_utils.HDFS')
     @patch('deployer_utils.exec_ssh')
     @patch('requests.put')
     @patch('os.path.isdir')
     @patch('os.rmdir')
-    def test_destroy_application(self, rmdir_mock, isdir_mock, put_mock, exec_ssh_mock):
+    def test_destroy_application(self, rmdir_mock, isdir_mock, put_mock, exec_ssh_mock, hdfs_client_mock):
         isdir_mock.return_value = True
         creator = ApplicationCreator(self.config, self.environment, self.service)
+        creator._hdfs_client = hdfs_client_mock
         creator.destroy_application('name', self.create_data)
         print exec_ssh_mock.call_args_list
         exec_ssh_mock.assert_any_call('localhost', 'root_user', 'keyfile.pem', [
