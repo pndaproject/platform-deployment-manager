@@ -61,7 +61,7 @@ class OozieCreator(Creator):
         self._start_oozie(create_data['job_handle'])
 
     def stop_component(self, application_name, create_data):
-        logging.debug("start_component: %s %s", application_name, json.dumps(create_data))
+        logging.debug("stop_component: %s %s", application_name, json.dumps(create_data))
         self._stop_oozie(create_data['job_handle'])
 
     def create_component(self, staged_component_path, application_name, component, properties):

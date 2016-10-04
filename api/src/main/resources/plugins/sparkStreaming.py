@@ -57,7 +57,7 @@ class SparkStreamingCreator(Creator):
         self._control_component(create_data['start_cmds'])
 
     def stop_component(self, application_name, create_data):
-        logging.debug("start_component: %s %s", application_name, json.dumps(create_data))
+        logging.debug("stop_component: %s %s", application_name, json.dumps(create_data))
         self._control_component(create_data['stop_cmds'])
 
     def _control_component(self, cmds):
