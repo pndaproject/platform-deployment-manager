@@ -34,12 +34,13 @@ class JupyterCreator(Creator):
 
     def validate_component(self, component):
         errors = []
+        notebook_found = False
         file_list = component['component_detail']
         for file_name in file_list:
             if file_name.endswith(r'.ipynb'):
                 notebook_found = True
 
-        if not notebook_found:
+        if notebook_found is False:
             errors.append('missing ipynb file')
 
         return errors
