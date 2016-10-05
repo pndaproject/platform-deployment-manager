@@ -346,6 +346,7 @@ class ApplicationCreatorTests(unittest.TestCase):
     def test_destroy_application(self, rmdir_mock, isdir_mock, put_mock, exec_ssh_mock, hdfs_client_mock):
         isdir_mock.return_value = True
         creator = ApplicationCreator(self.config, self.environment, self.service)
+        # pylint: disable=protected-access
         creator._hdfs_client = hdfs_client_mock
         creator.destroy_application('name', self.create_data)
         print exec_ssh_mock.call_args_list
