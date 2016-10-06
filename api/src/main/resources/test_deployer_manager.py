@@ -584,7 +584,7 @@ class DeploymentManagerTest(unittest.TestCase):
         repository = Mock()
         package_registrar = Mock()
         application_registrar = Mock()
-        environment = {"namespace": "some_namespace"}
+        environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
         config = {"deployer_thread_limit": 10}
 
         dmgr = DeploymentManager(repository,
@@ -602,7 +602,7 @@ class DeploymentManagerTest(unittest.TestCase):
         package_registrar = Mock()
         package_registrar.list_packages.return_value = expected_packages
         application_registrar = Mock()
-        environment = {"namespace": "some_namespace"}
+        environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
         config = {"deployer_thread_limit": 10}
 
         dmgr = DeploymentManager(repository,
@@ -633,7 +633,7 @@ class DeploymentManagerTest(unittest.TestCase):
 
         package_registrar = Mock()
         application_registrar = Mock()
-        environment = {"namespace": "some_namespace"}
+        environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
         config = {"deployer_thread_limit": 10}
 
         dmgr = DeploymentManager(repository,
@@ -650,7 +650,7 @@ class DeploymentManagerTest(unittest.TestCase):
         package_registrar.get_package_deploy_status.return_value = None
         package_registrar.package_exists.return_value = False
         application_registrar = Mock()
-        environment = {"namespace": "some_namespace"}
+        environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
         config = {"deployer_thread_limit": 10}
 
         dmgr = DeploymentManager(repository,
@@ -673,7 +673,7 @@ class DeploymentManagerTest(unittest.TestCase):
         package_registrar = Mock()
         application_registrar = Mock()
         application_registrar.list_applications_for_package.return_value = expected_applications
-        environment = {"namespace": "some_namespace"}
+        environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
         config = {"deployer_thread_limit": 10}
 
         dmgr = DeploymentManager(repository,
@@ -691,7 +691,7 @@ class DeploymentManagerTest(unittest.TestCase):
         package_registrar = Mock()
         application_registrar = Mock()
         application_registrar.list_applications.return_value = expected_applications
-        environment = {"namespace": "some_namespace"}
+        environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
         config = {"deployer_thread_limit": 10}
 
         dmgr = DeploymentManager(repository,
@@ -713,7 +713,7 @@ class DeploymentManagerTest(unittest.TestCase):
             'package_name': 'package_name',
             'status': ApplicationState.STARTING,
             'information': None}
-        environment = {"namespace": "some_namespace"}
+        environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
         config = {"deployer_thread_limit": 10}
 
         dmgr = DeploymentManager(repository,
@@ -728,7 +728,7 @@ class DeploymentManagerTest(unittest.TestCase):
         repository = Mock()
         package_registrar = Mock()
         application_registrar = Mock()
-        environment = {"namespace": "some_namespace"}
+        environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
         config = {"deployer_thread_limit": 10}
 
         class DeploymentManagerTester(DeploymentManager):
@@ -750,7 +750,7 @@ class DeploymentManagerTest(unittest.TestCase):
         package_registrar.get_package_deploy_status.return_value = None
         package_registrar.package_exists.return_value = False
         application_registrar = Mock()
-        environment = {"namespace": "some_namespace"}
+        environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
         config = {"deployer_thread_limit": 10}
         dmgr = DeploymentManager(repository,
                                  package_registrar,
@@ -775,7 +775,7 @@ class DeploymentManagerTest(unittest.TestCase):
             'package_name': 'package_name',
             'status': ApplicationState.STARTED,
             'information': None}
-        environment = {"namespace": "some_namespace"}
+        environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
         config = {"deployer_thread_limit": 10}
 
         dmgr = DeploymentManager(repository,
@@ -801,7 +801,7 @@ class DeploymentManagerTest(unittest.TestCase):
             'package_name': 'package_name',
             'status': ApplicationState.NOTCREATED,
             'information': None}
-        environment = {"namespace": "some_namespace"}
+        environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
         config = {"deployer_thread_limit": 10}
 
         dmgr = DeploymentManager(repository,

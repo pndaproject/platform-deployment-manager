@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+### Added
+- PNDA-2233 Jupyter notebook plugin added to deployment manager
+
 ## [0.1.1] 2016-09-13
 ### Changes
 - Improvements to documentation
