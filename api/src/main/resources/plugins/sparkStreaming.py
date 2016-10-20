@@ -1,5 +1,5 @@
 """
-Name:       oozie.py
+Name:       sparkStreaming.py
 Purpose:    Submits spark streaming jobs based on application package
 Author:     PNDA team
 
