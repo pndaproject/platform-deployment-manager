@@ -76,7 +76,7 @@ class DeploymentManager(object):
 
     def list_repository(self, recency):
         logging.info("list_available: %s", recency)
-        available = self._repository.list_packages(recency)
+        available = self._repository.get_package_list(recency)
         return available
 
     def get_package_info(self, package):
@@ -155,7 +155,7 @@ class DeploymentManager(object):
                 package_file = package + '.tar.gz'
                 logging.info("deploy: %s", package)
                 # download package:
-                package_data = self._repository.download_package(package_file)
+                package_data = self._repository.get_package(package_file)
                 # put package in database:
                 metadata = self._package_parser.get_package_metadata(package_data)
                 self._application_creator.validate_package(package, metadata)

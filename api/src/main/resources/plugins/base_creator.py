@@ -37,7 +37,6 @@ import json
 import string
 import collections
 import subprocess
-import os
 import hbase_descriptor
 import opentsdb_descriptor
 from deployer_utils import HDFS
@@ -235,10 +234,6 @@ class Creator(object):
         for single_component_data in create_data:
             self._destroy_optional_descriptors(single_component_data['descriptors'])
             self.destroy_component(application_name, single_component_data)
-        local_path = '/opt/%s/%s/' % (self._namespace, application_name)
-        if os.path.isdir(local_path):
-            os.rmdir(local_path)
-        self._hdfs_client.remove('/user/%s' % application_name, recursive=False)
         return None
 
     def start_components(self, application_name, start_data):
