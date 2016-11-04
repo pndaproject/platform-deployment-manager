@@ -143,3 +143,5 @@ class PackageParserTests(unittest.TestCase):
             }
         }
         self.assertEqual(parser.properties_from_metadata(metadata), expected_properties)
+        
+        

@@ -20,8 +20,11 @@ fi
 mkdir -p pnda-build
 
 BASE=${PWD}
-cd api/src/main/resources
+
+cd ${BASE}/api/src/main/resources
 nosetests test_*.py
+[[ $? -ne 0 ]] && exit -1
+
 cd ${BASE}/api
 mvn versions:set -DnewVersion=${VERSION}
 mvn clean package
