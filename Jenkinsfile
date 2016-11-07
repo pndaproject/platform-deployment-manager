@@ -14,21 +14,10 @@ node {
             checkout([$class: 'GitSCM', branches: [[name: "tags/${version}"]], extensions: [[$class: 'CleanCheckout']]])
         }
         
-        sh """
-        cd api
-        mvn versions:set -DnewVersion=${version}
-        mvn clean package
-        """
+        sh("./build.sh ${version}")
 
-        stage 'Test'
-        sh '''
-        cd api/src/main/resources
-        pylint_wrapper.py 10
-        nosetests test_*.py
-        '''
-
-        stage 'Deploy' 
-        build job: 'deploy-component', parameters: [[$class: 'StringParameterValue', name: 'branch', value: env.BRANCH_NAME],[$class: 'StringParameterValue', name: 'component', value: "deployment-manager"],[$class: 'StringParameterValue', name: 'release_path', value: "platform/releases"],[$class: 'StringParameterValue', name: 'release', value: "${workspace}/api/target/deployment-manager-${version}.tar.gz"]]
+        stage 'Deploy'
+        build job: 'deploy', parameters: [[$class: 'StringParameterValue', name: 'artifacts_path', value: "${workspace}/pnda-build"]]
 
         emailext attachLog: true, body: "Build succeeded (see ${env.BUILD_URL})", subject: "[JENKINS] ${env.JOB_NAME} succeeded", to: "${env.EMAIL_RECIPIENTS}"
 
