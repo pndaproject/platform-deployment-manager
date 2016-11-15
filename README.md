@@ -256,7 +256,7 @@ Response Codes:
 
 {
         "status": "STARTED",
-        "name": "mini-mouse-masher",
+        "name": "spark-batch-example-app-instance",
         "yarn-ids": [
             {"component":"example", "type":"oozie", "yarn-id":"application_1455877292606_0404"}
         ]
