@@ -88,10 +88,13 @@ def fill_hadoop_env(env):
         elif service.type == "YARN":
             for role in service.get_all_roles():
                 if role.type == "RESOURCEMANAGER":
-                    env['yarn_resource_manager_host'] = '%s' % api.get_host(
-                        role.hostRef.hostId).hostname
-                    env['yarn_resource_manager_port'] = '8088'
-                    env['yarn_resource_manager_mr_port'] = '8032'
+                    if 'yarn_resource_manager_host' in env:
+                        rm_instance = '_backup'
+                    else:
+                        rm_instance = ''
+                    env['yarn_resource_manager_host%s' % rm_instance] = '%s' % api.get_host(role.hostRef.hostId).hostname
+                    env['yarn_resource_manager_port%s' % rm_instance] = '8088'
+                    env['yarn_resource_manager_mr_port%s' % rm_instance] = '8032'
                 if role.type == "NODEMANAGER":
                     if 'yarn_node_managers' in env:
                         env['yarn_node_managers'] = '%s,%s' % (
