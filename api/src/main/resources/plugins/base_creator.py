@@ -36,7 +36,7 @@ import logging
 import json
 import string
 import collections
-import subprocess
+import requests
 import hbase_descriptor
 import opentsdb_descriptor
 from deployer_utils import HDFS
@@ -58,6 +58,18 @@ class Creator(object):
         self._hdfs_client = HDFS(environment['webhdfs_host'],
                                  environment['webhdfs_port'],
                                  'hdfs')
+
+        if 'yarn_resource_manager_host' in environment:
+            self._yarn_resource_manager = "%s:%s" % (environment['yarn_resource_manager_host'],
+                                                     environment['yarn_resource_manager_port'])
+        else:
+            self._yarn_resource_manager = None
+
+        if 'yarn_resource_manager_host_backup' in environment:
+            self._yarn_resource_manager_backup = "%s:%s" % (environment['yarn_resource_manager_host_backup'],
+                                                            environment['yarn_resource_manager_port_backup'])
+        else:
+            self._yarn_resource_manager_backup = None
 
     def validate_component(self, components):
         '''
@@ -123,6 +135,12 @@ class Creator(object):
         create_data - as per above explanation, the data returned from the
                       corresponding create operation, which should be
                       sufficient to execute stop command.
+        '''
+        pass
+
+    def get_component_type(self):
+        '''
+        returns a name for the component type
         '''
         pass
 
@@ -257,24 +275,55 @@ class Creator(object):
 
     def get_component_runtime_details(self, create_data):
         logging.debug("get_component_runtime_details: %s", create_data)
+
         details = {}
-        yarn_ids = []
-        details['yarn_ids'] = yarn_ids
-        for single_component_data in create_data:
-            yarn_id = self.get_yarn_id(single_component_data['component_job_name'])
-            if yarn_id is not None:
-                yarn_ids.append({"component": single_component_data['component_name'],
-                                 "type": self.get_component_type(),
-                                 "yarn-id": yarn_id})
+        yarn_applications = {}
+        details['yarn_applications'] = yarn_applications
+
+        all_yarn_applications = self._get_yarn_applications()
+        if all_yarn_applications is not None:
+            for single_component_data in create_data:
+                app_info = self._find_yarn_app_info(all_yarn_applications, single_component_data['component_job_name'])
+                if app_info is not None:
+                    job_key = '%s-%s' % (self.get_component_type(), single_component_data['component_name'])
+                    yarn_applications[job_key] = {"component": single_component_data['component_name'],
+                                                  "type": self.get_component_type(),
+                                                  "yarn-id": app_info['id'],
+                                                  "yarn-start-time": app_info['startedTime'],
+                                                  "yarn-state": app_info['state']}
+        else:
+            logging.error('Failed to query application list from any resource manager')
+
         return details
 
-    def get_yarn_id(self, job_name):
-        out = subprocess.check_output(['yarn', 'application', '-list'])
-        for line in out.splitlines():
-            fields = line.split('\t')
-            if len(fields) >= 6:
-                logging.debug(line)
-                app = fields[1].strip()
-                if app == job_name:
-                    return fields[0].strip()
-        return None
+    def _get_yarn_applications_from_rm(self, resource_manager):
+        result = None
+        logging.debug('Querying list of yarn applications from %s', resource_manager)
+        try:
+            url = 'http://%s/ws/v1/cluster/apps' % resource_manager
+            result = requests.get(url, headers={'Accept': 'application/json'}).json()
+        except:
+            logging.info('Failed to query application list from %s', url)
+
+        return result
+
+    def _get_yarn_applications(self):
+        result = self._get_yarn_applications_from_rm(self._yarn_resource_manager)
+        if result is None and self._yarn_resource_manager_backup is not None:
+            result = self._get_yarn_applications_from_rm(self._yarn_resource_manager_backup)
+        return result
+
+    def _get_yarn_start_time(self, app_info):
+        try:
+            return int(app_info['startedTime'])
+        except:
+            return 0
+
+    def _find_yarn_app_info(self, all_yarn_applications, job_name):
+        result = None
+        if 'apps' in all_yarn_applications and 'app' in all_yarn_applications['apps']:
+            for app in all_yarn_applications['apps']['app']:
+                if app['name'] == job_name:
+                    if result is None or self._get_yarn_start_time(app) > self._get_yarn_start_time(result):
+                        result = app
+        return result

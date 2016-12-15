@@ -23,7 +23,7 @@ either express or implied.
 
 import unittest
 from datetime import datetime
-from mock import patch, mock_open
+from mock import patch, mock_open, Mock
 from application_creator import ApplicationCreator
 from exceptiondef import FailedValidation, FailedCreation
 
@@ -357,13 +357,147 @@ class ApplicationCreatorTests(unittest.TestCase):
         put_mock.assert_any_call('oozie/v1/job/someid2?action=kill')
 
     # pylint: disable=line-too-long
-    @patch('subprocess.check_output')
-    def test_get_runtime_details(self, subprocess_mock):
-        subprocess_mock.return_value = '''Total number of applications (application-types: [] and states: [SUBMITTED, ACCEPTED, RUNNING]):1
-                Application-Id	    Application-Name	    Application-Type	      User	     Queue	             State	       Final-State	       Progress	                       Tracking-URL
-application_1455877292606_13009	             aname-componentA-job	               SPARK	      hdfs	 root.hdfs	           RUNNING	         UNDEFINED	            10%	           http://psm-cdh-dn0:51739
-application_1455877292606_13010	             aname-componentC-job	               SPARK	      hdfs	 root.hdfs	           RUNNING	         UNDEFINED	            10%	           http://psm-cdh-dn0:51739'''
+    @patch('requests.get')
+    def test_get_runtime_details(self, get_mock):
+        rm_call = Mock()
+        rm_call.json.return_value = {
+            "apps": {
+                "app": [{
+                    "id": "application_1455877292606_13009",
+                    "user": "hdfs",
+                    "name": "aname-componentA-job",
+                    "queue": "root.users.hdfs",
+                    "state": "FINISHED",
+                    "finalStatus": "SUCCEEDED",
+                    "progress": 100.0,
+                    "trackingUI": "History",
+                    "trackingUrl": "",
+                    "diagnostics": "",
+                    "clusterId": 1479988623709,
+                    "applicationType": "MAPREDUCE",
+                    "applicationTags": "",
+                    "startedTime": 1479996060665,
+                    "finishedTime": 1479996103786,
+                    "elapsedTime": 43121,
+                    "amContainerLogs": "",
+                    "amHostHttpAddress": "",
+                    "allocatedMB": -1,
+                    "allocatedVCores": -1,
+                    "runningContainers": -1,
+                    "memorySeconds": 30600,
+                    "vcoreSeconds": 29,
+                    "preemptedResourceMB": 0,
+                    "preemptedResourceVCores": 0,
+                    "numNonAMContainerPreempted": 0,
+                    "numAMContainerPreempted": 0,
+                    "logAggregationStatus": "DISABLED"
+                }, {
+                    "id": "application_1455877292606_13010",
+                    "user": "hdfs",
+                    "name": "aname-componentC-job",
+                    "queue": "root.users.hdfs",
+                    "state": "FINISHED",
+                    "finalStatus": "SUCCEEDED",
+                    "progress": 100.0,
+                    "trackingUI": "History",
+                    "trackingUrl": "",
+                    "diagnostics": "",
+                    "clusterId": 1479988623709,
+                    "applicationType": "MAPREDUCE",
+                    "applicationTags": "",
+                    "startedTime": 1479996060665,
+                    "finishedTime": 1479996103786,
+                    "elapsedTime": 43121,
+                    "amContainerLogs": "",
+                    "amHostHttpAddress": "",
+                    "allocatedMB": -1,
+                    "allocatedVCores": -1,
+                    "runningContainers": -1,
+                    "memorySeconds": 30600,
+                    "vcoreSeconds": 29,
+                    "preemptedResourceMB": 0,
+                    "preemptedResourceVCores": 0,
+                    "numNonAMContainerPreempted": 0,
+                    "numAMContainerPreempted": 0,
+                    "logAggregationStatus": "DISABLED"
+                }, {
+                    "id": "application_1455877292606_13011",
+                    "user": "hdfs",
+                    "name": "aname-componentC-job",
+                    "queue": "root.users.hdfs",
+                    "state": "RUNNING",
+                    "finalStatus": "SUCCEEDED",
+                    "progress": 100.0,
+                    "trackingUI": "History",
+                    "trackingUrl": "",
+                    "diagnostics": "",
+                    "clusterId": 1479988623709,
+                    "applicationType": "MAPREDUCE",
+                    "applicationTags": "",
+                    "startedTime": 1479996060667,
+                    "finishedTime": 1479996103786,
+                    "elapsedTime": 43121,
+                    "amContainerLogs": "",
+                    "amHostHttpAddress": "",
+                    "allocatedMB": -1,
+                    "allocatedVCores": -1,
+                    "runningContainers": -1,
+                    "memorySeconds": 30600,
+                    "vcoreSeconds": 29,
+                    "preemptedResourceMB": 0,
+                    "preemptedResourceVCores": 0,
+                    "numNonAMContainerPreempted": 0,
+                    "numAMContainerPreempted": 0,
+                    "logAggregationStatus": "DISABLED"
+                }, {
+                    "id": "application_1455877292606_13012",
+                    "user": "hdfs",
+                    "name": "aname-componentC-job",
+                    "queue": "root.users.hdfs",
+                    "state": "NOT STARTED",
+                    "finalStatus": "SUCCEEDED",
+                    "progress": 100.0,
+                    "trackingUI": "History",
+                    "trackingUrl": "",
+                    "diagnostics": "",
+                    "clusterId": 1479988623709,
+                    "applicationType": "MAPREDUCE",
+                    "applicationTags": "",
+                    "startedTime": None,
+                    "finishedTime": 1479996103786,
+                    "elapsedTime": 43121,
+                    "amContainerLogs": "",
+                    "amHostHttpAddress": "",
+                    "allocatedMB": -1,
+                    "allocatedVCores": -1,
+                    "runningContainers": -1,
+                    "memorySeconds": 30600,
+                    "vcoreSeconds": 29,
+                    "preemptedResourceMB": 0,
+                    "preemptedResourceVCores": 0,
+                    "numNonAMContainerPreempted": 0,
+                    "numAMContainerPreempted": 0,
+                    "logAggregationStatus": "DISABLED"
+                }]
+            }
+        }
+        get_mock.return_value = rm_call
+
         creator = ApplicationCreator(self.config, self.environment, self.service)
         result = creator.get_application_runtime_details('name', self.create_data)
-        self.assertEqual(result, {'yarn_ids': [{'component': 'componentA', 'type': 'oozie', 'yarn-id': 'application_1455877292606_13009'},
-                                               {'component': 'componentC', 'type': 'sparkStreaming', 'yarn-id': 'application_1455877292606_13010'}]})
+        self.assertEqual(result, {"yarn_applications": {
+            "oozie-componentA": {
+                "type": "oozie",
+                "yarn-id": "application_1455877292606_13009",
+                "component": "componentA",
+                "yarn-start-time": 1479996060665,
+                "yarn-state": "FINISHED"
+            },
+            "sparkStreaming-componentC": {
+                "type": "sparkStreaming",
+                "yarn-id": "application_1455877292606_13011",
+                "component": "componentC",
+                "yarn-start-time": 1479996060667,
+                "yarn-state": "RUNNING"
+            }
+        }})

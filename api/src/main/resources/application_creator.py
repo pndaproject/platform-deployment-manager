@@ -134,11 +134,11 @@ class ApplicationCreator(object):
         logging.debug("get_application_runtime_details: %s %s", application_name, application_create_data)
 
         details = {}
-        details['yarn_ids'] = []
+        details['yarn_applications'] = {}
         for component_type, component_create_data in application_create_data.iteritems():
             creator = self._load_creator(component_type)
             type_details = creator.get_component_runtime_details(component_create_data)
-            details['yarn_ids'].extend(type_details['yarn_ids'])
+            details['yarn_applications'].update(type_details['yarn_applications'])
         return details
 
     def _load_creator(self, component_type):
