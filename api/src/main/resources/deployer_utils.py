@@ -97,16 +97,14 @@ def fill_hadoop_env(env):
                     env['yarn_resource_manager_mr_port%s' % rm_instance] = '8032'
                 if role.type == "NODEMANAGER":
                     if 'yarn_node_managers' in env:
-                        env['yarn_node_managers'] = '%s,%s' % (
-                            env['yarn_node_managers'], api.get_host(role.hostRef.hostId).hostname)
+                        env['yarn_node_managers'] = '%s,%s' % (env['yarn_node_managers'], api.get_host(role.hostRef.hostId).hostname)
                     else:
                         env['yarn_node_managers'] = '%s' % api.get_host(
                             role.hostRef.hostId).hostname
         elif service.type == "MAPREDUCE":
             for role in service.get_all_roles():
                 if role.type == "JOBTRACKER":
-                    env['job_tracker'] = '%s:8021' % api.get_host(
-                        role.hostRef.hostId).hostname
+                    env['job_tracker'] = '%s:8021' % api.get_host(role.hostRef.hostId).hostname
                     break
         elif service.type == "ZOOKEEPER":
             for role in service.get_all_roles():
@@ -119,42 +117,37 @@ def fill_hadoop_env(env):
         elif service.type == "HBASE":
             for role in service.get_all_roles():
                 if role.type == "HBASERESTSERVER":
-                    env['hbase_rest_server'] = '%s' % api.get_host(
-                        role.hostRef.hostId).hostname
+                    env['hbase_rest_server'] = '%s' % api.get_host(role.hostRef.hostId).hostname
                     env['hbase_rest_port'] = '20550'
-                    break
+                elif role.type == "HBASETHRIFTSERVER":
+                    env['hbase_thrift_server'] = '%s' % api.get_host(role.hostRef.hostId).hostname
         elif service.type == "OOZIE":
             for role in service.get_all_roles():
                 if role.type == "OOZIE_SERVER":
-                    env['oozie_uri'] = 'http://%s:11000/oozie' % api.get_host(
-                        role.hostRef.hostId).hostname
+                    env['oozie_uri'] = 'http://%s:11000/oozie' % api.get_host(role.hostRef.hostId).hostname
                     break
         elif service.type == "HIVE":
             for role in service.get_all_roles():
                 if role.type == "HIVESERVER2":
-                    env['hive_server'] = '%s' % api.get_host(
-                        role.hostRef.hostId).hostname
+                    env['hive_server'] = '%s' % api.get_host(role.hostRef.hostId).hostname
                     env['hive_port'] = '10000'
                     break
         elif service.type == "IMPALA":
             for role in service.get_all_roles():
                 if role.type == "IMPALAD":
-                    env['impala_host'] = '%s' % api.get_host(
-                        role.hostRef.hostId).hostname
+                    env['impala_host'] = '%s' % api.get_host(role.hostRef.hostId).hostname
                     env['impala_port'] = '21050'
                     break
         elif service.type == "KUDU":
             for role in service.get_all_roles():
                 if role.type == "KUDU_MASTER":
-                    env['kudu_host'] = '%s' % api.get_host(
-                        role.hostRef.hostId).hostname
+                    env['kudu_host'] = '%s' % api.get_host(role.hostRef.hostId).hostname
                     env['kudu_port'] = '7051'
                     break
         elif service.type == "HUE":
             for role in service.get_all_roles():
                 if role.type == "HUE_SERVER":
-                    env['hue_host'] = '%s' % api.get_host(
-                        role.hostRef.hostId).hostname
+                    env['hue_host'] = '%s' % api.get_host(role.hostRef.hostId).hostname
                     env['hue_port'] = '8888'
                     break
 
@@ -239,6 +232,25 @@ class HDFS(object):
             canonicalize(remote_file_path),
             sio,
             overwrite=True)
+
+    def append_file(self, data, remote_file_path):
+
+        logging.debug('append to: %s', remote_file_path)
+
+        self._hdfs.append_file(canonicalize(remote_file_path), data)
+
+
+    def stream_file_to_disk(self, remote_file_path, local_file_path):
+        chunk_size = 10*1024*1024
+        offset = 0
+        with open(local_file_path, 'wb') as dest_file:
+            data = self._hdfs.read_file(canonicalize(remote_file_path), offset=offset, length=chunk_size)
+            while True:
+                dest_file.write(data)
+                if len(data) < chunk_size:
+                    break
+                offset += chunk_size
+                data = self._hdfs.read_file(canonicalize(remote_file_path), offset=offset, length=chunk_size)
 
     def read_file(self, remote_file_path):
 

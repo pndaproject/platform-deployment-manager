@@ -23,7 +23,8 @@ either express or implied.
 
 import unittest
 from mock import patch
-from happybase.hbase.ttypes import AlreadyExists
+import happybase
+from Hbase_thrift import AlreadyExists
 from application_registrar import HbaseApplicationRegistrar
 from lifecycle_states import ApplicationState
 

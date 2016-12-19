@@ -22,7 +22,6 @@ either express or implied.
 
 import tarfile
 import os
-import io
 import json
 import re
 
@@ -46,14 +45,14 @@ class ApplicationCreator(object):
                                  environment['webhdfs_port'],
                                  'hdfs')
 
-    def create_application(self, package_data, package_metadata, application_name, property_overrides):
+    def create_application(self, package_data_path, package_metadata, application_name, property_overrides):
 
         logging.debug("create_application: %s", application_name)
 
         if not re.match('^[a-zA-Z0-9_-]+$', application_name):
             raise FailedCreation('Application name %s may only contain a-z A-Z 0-9 - _' % application_name)
 
-        stage_path = self._stage_package(package_data)
+        stage_path = self._stage_package(package_data_path)
 
         # create each class of components in the package, aggregating any
         # component specific return data for destruction
@@ -164,16 +163,14 @@ class ApplicationCreator(object):
 
         return creator
 
-    def _stage_package(self, package_data):
+    def _stage_package(self, package_data_path):
 
         logging.debug("_stage_package")
 
         if not os.path.isdir(self._config['stage_root']):
             os.mkdir(self._config['stage_root'])
 
-        file_like_object = io.BytesIO(package_data)
-        tar = tarfile.open(fileobj=file_like_object)
+        tar = tarfile.open(package_data_path)
         stage_path = "%s/%s" % (self._config['stage_root'], uuid.uuid4())
         tar.extractall(path=stage_path)
-        file_like_object.close()
         return stage_path

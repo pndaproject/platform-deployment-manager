@@ -22,6 +22,7 @@ either express or implied.
 
 import logging
 import json
+import os
 import time
 import datetime
 import threading
@@ -155,11 +156,11 @@ class DeploymentManager(object):
                 package_file = package + '.tar.gz'
                 logging.info("deploy: %s", package)
                 # download package:
-                package_data = self._repository.get_package(package_file)
+                package_data_path = self._repository.get_package(package_file)
                 # put package in database:
-                metadata = self._package_parser.get_package_metadata(package_data)
+                metadata = self._package_parser.get_package_metadata(package_data_path)
                 self._application_creator.validate_package(package, metadata)
-                self._package_registrar.set_package(package, package_data)
+                self._package_registrar.set_package(package, package_data_path)
                 # set the operation status as complete
                 deploy_status = {"state": PackageDeploymentState.DEPLOYED,
                                  "information": "Deployed " + package + " at " + self.utc_string()}
@@ -175,6 +176,7 @@ class DeploymentManager(object):
             finally:
                 # report final state of operation to database:
                 self._package_registrar.set_package_deploy_status(package, deploy_status)
+                os.remove(package_data_path)
 
         # schedule work to be done in the background:
         self._run_asynch_package_task(package_name=package,
@@ -373,7 +375,7 @@ class DeploymentManager(object):
             self._assert_application_status(application, ApplicationState.NOTCREATED)
             self._assert_package_status(package, PackageDeploymentState.DEPLOYED)
             defaults = self.get_package_info(package)['defaults']
-            package_data = self._package_registrar.get_package_data(package)
+            package_data_path = self._package_registrar.get_package_data(package)
             self._application_registrar.create_application(package, application, overrides, defaults)
             self._mark_creating(application)
 
@@ -383,7 +385,7 @@ class DeploymentManager(object):
                 try:
                     package_metadata = self._package_registrar.get_package_metadata(package)['metadata']
                     create_data = self._application_creator.create_application(
-                        package_data, package_metadata, application, overrides)
+                        package_data_path, package_metadata, application, overrides)
                     self._application_registrar.set_create_data(application, create_data)
                     self._application_registrar.set_application_status(application, ApplicationState.CREATED)
                 except ExceptionThatShouldBeDisplayedToCaller as ex:
@@ -398,6 +400,7 @@ class DeploymentManager(object):
                 # clear inner locks:
                 self._clear_package_progress(application)
                 self._state_change_event_application(application)
+                os.remove(package_data_path)
 
         self.dispatcher.run_as_asynch(task=do_work)
 

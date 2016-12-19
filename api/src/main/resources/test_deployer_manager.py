@@ -67,6 +67,7 @@ class DeploymentManagerTest(unittest.TestCase):
             'cluster_root_user': 'root_user',
             'yarn_node_managers': 'nm1,nm2',
             'hbase_rest_server': 'hbasehost',
+            'hbase_thrift_server': 'hbasehost',
             'hbase_rest_port': '123',
             'hive_server': 'hivehost',
             'hive_port': '124',
@@ -136,7 +137,9 @@ class DeploymentManagerTest(unittest.TestCase):
         info = test_result[0].get("info")
         self.assertTrue("Error undeploying" in info["information"], "expected error message in: " + str(info))
 
-    def test_create_application_errors(self):
+    @patch('os.remove')
+    # pylint: disable=unused-argument
+    def test_create_application_errors(self, os_mock_rem):
         """
         Tests asynchronous error reporting in the start-app process.
         """
@@ -187,8 +190,9 @@ class DeploymentManagerTest(unittest.TestCase):
     @patch('application_creator.shutil')
     @patch('application_creator.os')
     @patch('application_creator.tarfile')
+    @patch('os.remove')
     # pylint: disable=unused-argument
-    def test_create_oozie_error(self, tar_mock, os_mock, shutil_mock, spur_ssh,
+    def test_create_oozie_error(self, os_mock_rem, tar_mock, os_mock, shutil_mock, spur_ssh,
                                 hdfs_client_mock, post_mock, put_mock, exec_ssh_mock,
                                 os_sys_mock, dt_mock, hive_mock, hbase_mock):
         """
@@ -503,7 +507,9 @@ class DeploymentManagerTest(unittest.TestCase):
 
         return verify_app_state_changes
 
-    def test_deploy_package_with_errors(self):
+    @patch('os.remove')
+    # pylint: disable=unused-argument
+    def test_deploy_package_with_errors(self, os_mock):
         """
         Tests asynchronous error reporting in the deploy-package process.
         """
@@ -543,7 +549,9 @@ class DeploymentManagerTest(unittest.TestCase):
         self.assertEquals(info.get("data")[0]["state"], PackageDeploymentState.NOTDEPLOYED)
         self.assertTrue("Failed validation" in info.get("data")[0]["information"])
 
-    def test_deploy_package(self):
+    @patch('os.remove')
+    # pylint: disable=unused-argument
+    def test_deploy_package(self, os_mock):
         """
         Tests asynchronous deploy-package process.
         """
