@@ -23,7 +23,7 @@ either express or implied.
 import logging
 import json
 import happybase
-from happybase.hbase.ttypes import AlreadyExists
+from Hbase_thrift import AlreadyExists
 
 from lifecycle_states import ApplicationState
 
