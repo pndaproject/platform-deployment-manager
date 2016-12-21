@@ -30,7 +30,7 @@ import traceback
 import requests
 
 import application_creator
-from exceptiondef import ConflictingState, NotFound, ExceptionThatShouldBeDisplayedToCaller
+from exceptiondef import ConflictingState, NotFound
 from package_parser import PackageParser
 from async_dispatcher import AsyncDispatcher
 from lifecycle_states import ApplicationState, PackageDeploymentState
@@ -151,7 +151,6 @@ class DeploymentManager(object):
         # this function will be executed in the background:
         def _do_deploy():
             # if this value is not changed, then it is assumed that the operation never completed
-            deploy_status = {"state": PackageDeploymentState.NOTDEPLOYED, "information": "Error deploying " + package}
             try:
                 package_file = package + '.tar.gz'
                 logging.info("deploy: %s", package)
@@ -165,12 +164,9 @@ class DeploymentManager(object):
                 deploy_status = {"state": PackageDeploymentState.DEPLOYED,
                                  "information": "Deployed " + package + " at " + self.utc_string()}
                 logging.info("deployed: %s", package)
-            except ExceptionThatShouldBeDisplayedToCaller as ex:
-                # log error to screen:
-                logging.error(ex.msg)
-                # prepare human readable message
-                error_message = package + " " + str(type(ex).__name__) + ", details: " + json.dumps(ex.msg)
-                # set the status:
+            except Exception as ex:
+                logging.error(str(ex))
+                error_message = "Error deploying " + package + " " + str(type(ex).__name__) + ", details: " + json.dumps(str(ex))
                 deploy_status = {"state": PackageDeploymentState.NOTDEPLOYED, "information": error_message}
                 raise
             finally:
@@ -190,26 +186,21 @@ class DeploymentManager(object):
     def undeploy_package(self, package):
         # this function will be executed in the background:
         def do_undeploy():
-            undeploy_failed = True
-            # this will be the default error message if it is not clear what the error was:
-            deploy_status = {"state": PackageDeploymentState.DEPLOYED, "information": "Error undeploying " + package}
+            deploy_status = None
             try:
-
                 logging.info("undeploy: %s", package)
                 self._package_registrar.delete_package(package)
                 logging.info("undeployed: %s", package)
-                deploy_status = None
-                undeploy_failed = False
-            except ExceptionThatShouldBeDisplayedToCaller as ex:
+            except Exception as ex:
                 # log error to screen:
-                logging.error(ex.msg)
+                logging.error(str(ex))
                 # prepare human readable message
-                error_message = package + " " + str(type(ex).__name__) + ", details: " + json.dumps(ex.msg)
+                error_message = "Error undeploying " + package + " " + str(type(ex).__name__) + ", details: " + json.dumps(str(ex))
                 # set the status:
-                deploy_status = {"state": PackageDeploymentState.NOTDEPLOYED, "information": error_message}
+                deploy_status = {"state": PackageDeploymentState.DEPLOYED, "information": error_message}
                 raise
             finally:
-                if undeploy_failed:
+                if deploy_status is not None:
                     # persist any errors in the database, but still throw them:
                     self._package_registrar.set_package_deploy_status(package, deploy_status)
 
@@ -303,15 +294,9 @@ class DeploymentManager(object):
                     create_data = self._application_registrar.get_create_data(application)
                     self._application_creator.start_application(application, create_data)
                     self._application_registrar.set_application_status(application, ApplicationState.STARTED)
-                except ExceptionThatShouldBeDisplayedToCaller as ex:
-                    self._handle_application_error(application, ex, ApplicationState.CREATED)
-                    raise
                 except Exception as ex:
-                    # report the error:
-                    self._application_registrar.set_application_status(application, ApplicationState.CREATED,
-                                                                       "Error starting application: " + application)
-                    # re-throw the exception after reporting it
-                    raise Exception(ex)
+                    self._handle_application_error(application, ex, ApplicationState.CREATED, "starting")
+                    raise
             finally:
                 self._clear_package_progress(application)
                 self._state_change_event_application(application)
@@ -331,15 +316,9 @@ class DeploymentManager(object):
                     create_data = self._application_registrar.get_create_data(application)
                     self._application_creator.stop_application(application, create_data)
                     self._application_registrar.set_application_status(application, ApplicationState.CREATED)
-                except ExceptionThatShouldBeDisplayedToCaller as ex:
-                    self._handle_application_error(application, ex, ApplicationState.STARTED)
-                    raise
                 except Exception as ex:
-                    # report the error:
-                    self._application_registrar.set_application_status(application, ApplicationState.STARTED,
-                                                                       "Error stopping application: " + application)
-                    # re-throw the exception after reporting it
-                    raise Exception(ex)
+                    self._handle_application_error(application, ex, ApplicationState.STARTED, "stopping")
+                    raise
             finally:
                 self._clear_package_progress(application)
                 self._state_change_event_application(application)
@@ -388,14 +367,10 @@ class DeploymentManager(object):
                         package_data_path, package_metadata, application, overrides)
                     self._application_registrar.set_create_data(application, create_data)
                     self._application_registrar.set_application_status(application, ApplicationState.CREATED)
-                except ExceptionThatShouldBeDisplayedToCaller as ex:
-                    self._handle_application_error(application, ex, ApplicationState.NOTCREATED)
-                    raise
                 except Exception as ex:
-                    self._application_registrar.set_application_status(application, ApplicationState.NOTCREATED,
-                                                                       "Error creating application: " + application)
+                    self._handle_application_error(application, ex, ApplicationState.NOTCREATED, "creating")
                     logging.error(traceback.format_exc(ex))
-                    raise ex
+                    raise
             finally:
                 # clear inner locks:
                 self._clear_package_progress(application)
@@ -404,7 +379,7 @@ class DeploymentManager(object):
 
         self.dispatcher.run_as_asynch(task=do_work)
 
-    def _handle_application_error(self, application, ex, app_status):
+    def _handle_application_error(self, application, ex, app_status, operation):
         """
         Use to handle application exceptions which should be relayed back to the user
         Sets the application state to an error
@@ -413,9 +388,9 @@ class DeploymentManager(object):
         :param app_status: The status the app should be at following the error.
         """
         # log error to screen:
-        logging.error(ex.msg)
+        logging.error(str(ex))
         # prepare human readable message
-        error_message = application + " " + str(type(ex).__name__) + ", details: " + json.dumps(ex.msg)
+        error_message = "Error %s " % operation + application + " " + str(type(ex).__name__) + ", details: " + json.dumps(str(ex))
         # set the status:
         self._application_registrar.set_application_status(application, app_status, error_message)
 
@@ -432,15 +407,9 @@ class DeploymentManager(object):
                     create_data = self._application_registrar.get_create_data(application)
                     self._application_creator.destroy_application(application, create_data)
                     self._application_registrar.delete_application(application)
-                except ExceptionThatShouldBeDisplayedToCaller as ex:
-                    self._handle_application_error(application, ex, ApplicationState.STARTED)
-                    raise
                 except Exception as ex:
-                    # report the error:
-                    self._application_registrar.set_application_status(application, ApplicationState.STARTED,
-                                                                       "Error deleting application: " + application)
-                    # re-throw the exception after reporting it
-                    raise Exception(ex)
+                    self._handle_application_error(application, ex, ApplicationState.STARTED, "deleting")
+                    raise
             finally:
                 self._clear_package_progress(application)
                 self._state_change_event_application(application)

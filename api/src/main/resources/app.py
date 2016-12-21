@@ -83,7 +83,11 @@ class BaseHandler(CorsMixin, tornado.web.RequestHandler):
                 self.finish(ex.msg)
             else:
                 self.set_status(500)
-                self.finish()
+                if "information" in str(ex):
+                    msg = str(ex)
+                else:
+                    msg = {"status": "UNKNOWN", "information": str(ex)}
+                self.finish(msg)
 
         IOLoop.instance().add_callback(callback=finish)
 
