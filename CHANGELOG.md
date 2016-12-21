@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+### Fixed
+ - PNDA-2498 Application package data is now stored in HDFS with a reference to the path only held in the HBase record. This prevents HBase being overloaded with large packages (100MB+).
+
 ## [0.2.1] 2016-12-12
 ### Changed
 - Externalized build logic from Jenkins to shell script so it can be reused
