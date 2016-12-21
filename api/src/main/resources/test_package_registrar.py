@@ -23,17 +23,18 @@ either express or implied.
 
 import unittest
 import json
-from mock import patch
-from happybase.hbase.ttypes import AlreadyExists
-
+import happybase
+from mock import patch, mock_open, Mock
+from Hbase_thrift import AlreadyExists
 from package_registrar import HbasePackageRegistrar
+
 from lifecycle_states import PackageDeploymentState
 
 
 class GenerateRecord(unittest.TestCase):
 
     def test_generate_record(self):
-        store = HbasePackageRegistrar(None)
+        store = HbasePackageRegistrar(None, None, None, None, None)
         metadata = {
             "component_types": {
                 "sparkStreaming": {
@@ -46,65 +47,77 @@ class GenerateRecord(unittest.TestCase):
                         "component_name": "componentC"}}},
             "package_name": "test_package-1.0.2"}
 
-        package_data = bytes([0x13, 0x00, 0x00, 0x00, 0x08, 0x00])
+        package_data_path = '/user/pnda/application_packages/test_package-1.0.2'
 
         expected_record = metadata["package_name"], {
             'cf:name': 'test_package',
             'cf:version': '1.0.2',
             'cf:metadata': json.dumps(metadata),
-            'cf:package_data': package_data
+            'cf:package_data': package_data_path
         }
 
         self.assertEqual(
-            store.generate_record(
-                metadata,
-                package_data),
+            store.generate_record(metadata),
             expected_record)
 
     @patch('happybase.Connection')
     @patch('package_registrar.PackageParser')
-    def test_download_package(self, parser_mock, hbase_mock):
+    @patch('deployer_utils.HDFS')
+    # pylint: disable=unused-argument
+    # pylint: disable=protected-access
+    def test_download_package(self, hdfs_mock, parser_mock, hbase_mock):
         parser_mock.return_value.get_package_metadata.return_value = {"package_name": "a-1"}
 
-        registrar = HbasePackageRegistrar('1.2.3.4')
-        registrar.set_package('name', 'abcd')
+        registrar = HbasePackageRegistrar('1.2.3.4', None, None, None, None)
+        registrar._hdfs_client = Mock()
+        with patch("__builtin__.open", mock_open(read_data="1234")):
+            registrar.set_package('name', 'abcd')
 
         hbase_mock.return_value.table.return_value.put.assert_called_once_with(
             'a-1',
-            {'cf:metadata': '{"package_name": "a-1"}', 'cf:package_data': 'abcd', 'cf:name': 'a', 'cf:version': '1'})
+            {'cf:metadata': '{"package_name": "a-1"}', 'cf:package_data': '/user/pnda/application_packages/a-1', 'cf:name': 'a', 'cf:version': '1'})
 
     @patch('happybase.Connection')
     def test_set_package_deploy_status(self, hbase_mock):
-        registrar = HbasePackageRegistrar('1.2.3.4')
+        registrar = HbasePackageRegistrar('1.2.3.4', None, None, None, None)
         registrar.set_package_deploy_status('name', PackageDeploymentState.DEPLOYED)
 
         hbase_mock.return_value.table.return_value.put.assert_called_once_with('name', {'cf:deploy_status': '"%s"' % PackageDeploymentState.DEPLOYED})
 
     @patch('happybase.Connection')
+    # pylint: disable=protected-access
     def test_delete_package(self, hbase_mock):
-        registrar = HbasePackageRegistrar('1.2.3.4')
+        registrar = HbasePackageRegistrar('1.2.3.4', None, None, None, None)
+        registrar._hdfs_client = Mock()
         registrar.delete_package('name')
         hbase_mock.return_value.table.return_value.delete.assert_called_once_with('name')
 
     @patch('happybase.Connection')
+    # pylint: disable=protected-access
     def test_table_exists(self, hbase_mock):
         def throwerr(arg1, arg2):
             raise AlreadyExists("%s%s" % (arg1, arg2))
 
         hbase_mock.return_value.create_table.side_effect = throwerr
 
-        registrar = HbasePackageRegistrar('1.2.3.4')
+        registrar = HbasePackageRegistrar('1.2.3.4', None, None, None, None)
+        registrar._hdfs_client = Mock()
         registrar.delete_package('name')
         hbase_mock.return_value.table.return_value.delete.assert_called_once_with('name')
 
     @patch('happybase.Connection')
+    # pylint: disable=unused-argument
+    # pylint: disable=protected-access
     def test_get_package_data(self, hbase_mock):
         hbase_mock.return_value.table.return_value.row.return_value = {'cf:package_data': 'abcd'}
 
-        registrar = HbasePackageRegistrar('1.2.3.4')
-        result = registrar.get_package_data('name')
+        registrar = HbasePackageRegistrar('1.2.3.4', None, None, None, 'path')
+        registrar._hdfs_client = Mock()
 
-        self.assertEqual(result, 'abcd')
+        with patch("__builtin__.open", mock_open(read_data="1234")):
+            result = registrar.get_package_data('name')
+
+        self.assertEqual(result, 'path/name')
         hbase_mock.return_value.table.return_value.row.return_value = {}
 
         result = registrar.get_package_data('name')
@@ -114,7 +127,7 @@ class GenerateRecord(unittest.TestCase):
     def test_get_package_metadata(self, hbase_mock):
         hbase_mock.return_value.table.return_value.row.return_value = {'cf:metadata': '{"some": "thing"}', 'cf:name': 'name', 'cf:version': '1.0.0'}
 
-        registrar = HbasePackageRegistrar('1.2.3.4')
+        registrar = HbasePackageRegistrar('1.2.3.4', None, None, None, None)
         result = registrar.get_package_metadata('name')
 
         self.assertEqual(result, {'version': '1.0.0', 'name': 'name', 'metadata': {u'some': u'thing'}})
@@ -127,7 +140,7 @@ class GenerateRecord(unittest.TestCase):
     def test_package_exists(self, hbase_mock):
         hbase_mock.return_value.table.return_value.row.return_value = {'cf:metadata': '{"some": "thing"}', 'cf:name': 'name', 'cf:version': '1.0.0'}
 
-        registrar = HbasePackageRegistrar('1.2.3.4')
+        registrar = HbasePackageRegistrar('1.2.3.4', None, None, None, None)
         result = registrar.package_exists('name')
         self.assertEqual(result, True)
 
@@ -140,7 +153,7 @@ class GenerateRecord(unittest.TestCase):
     def test_get_package_deploy_status(self, hbase_mock):
         hbase_mock.return_value.table.return_value.row.return_value = {'cf:deploy_status': '"%s"' % PackageDeploymentState.DEPLOYED}
 
-        registrar = HbasePackageRegistrar('1.2.3.4')
+        registrar = HbasePackageRegistrar('1.2.3.4', None, None, None, None)
         result = registrar.get_package_deploy_status('name')
         self.assertEqual(result, PackageDeploymentState.DEPLOYED)
 
@@ -153,6 +166,6 @@ class GenerateRecord(unittest.TestCase):
     def test_list_packages(self, hbase_mock):
         hbase_mock.return_value.table.return_value.scan.return_value = [('name1', None), ('name2', None)]
 
-        registrar = HbasePackageRegistrar('1.2.3.4')
+        registrar = HbasePackageRegistrar('1.2.3.4', None, None, None, None)
         result = registrar.list_packages()
         self.assertEqual(result, ['name1', 'name2'])

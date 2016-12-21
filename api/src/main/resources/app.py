@@ -297,12 +297,16 @@ def main():
 
     deployer_utils.fill_hadoop_env(config['environment'])
 
-    package_repository = PackageRepoRestClient(config['config']["package_repository"])
+    package_repository = PackageRepoRestClient(config['config']["package_repository"], config['config']['stage_root'])
     dm = deployment_manager.DeploymentManager(package_repository,
                                               package_registrar.HbasePackageRegistrar(
-                                                  config['environment']['hbase_rest_server']),
+                                                  config['environment']['hbase_thrift_server'],
+                                                  config['environment']['webhdfs_host'],
+                                                  'hdfs',
+                                                  config['environment']['webhdfs_port'],
+                                                  config['config']['stage_root']),
                                               application_registrar.HbaseApplicationRegistrar(
-                                                  config['environment']['hbase_rest_server']),
+                                                  config['environment']['hbase_thrift_server']),
                                               config['environment'],
                                               config['config'])
 
