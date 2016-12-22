@@ -20,36 +20,39 @@ License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF 
 either express or implied.
 """
 
-class ExceptionThatShouldBeDisplayedToCaller(Exception):
+class DmException(Exception):
     """
     Any exception derived from this class should be exposed through the API to the caller.
     """
     def __init__(self, arg):
-        super(ExceptionThatShouldBeDisplayedToCaller, self).__init__(arg)
+        super(DmException, self).__init__(arg)
         self.msg = arg
 
-class NotFound(ExceptionThatShouldBeDisplayedToCaller):
+    def __str__(self):
+        return str(self.msg)
+
+class NotFound(DmException):
 
     def __init__(self, arg):
         super(NotFound, self).__init__(arg)
         self.msg = arg
 
 
-class ConflictingState(ExceptionThatShouldBeDisplayedToCaller):
+class ConflictingState(DmException):
 
     def __init__(self, arg):
         super(ConflictingState, self).__init__(arg)
         self.msg = arg
 
 
-class FailedValidation(ExceptionThatShouldBeDisplayedToCaller):
+class FailedValidation(DmException):
 
     def __init__(self, arg):
         super(FailedValidation, self).__init__(arg)
         self.msg = arg
 
 
-class FailedCreation(ExceptionThatShouldBeDisplayedToCaller):
+class FailedCreation(DmException):
 
     def __init__(self, arg):
         super(FailedCreation, self).__init__(arg)

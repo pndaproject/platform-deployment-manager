@@ -23,7 +23,7 @@ either express or implied.
 
 import unittest
 from mock import patch
-import happybase
+import happybase  # pylint: disable=unused-import
 from Hbase_thrift import AlreadyExists
 from application_registrar import HbaseApplicationRegistrar
 from lifecycle_states import ApplicationState
