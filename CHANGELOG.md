@@ -1,9 +1,13 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [unreleased]
+## [Unreleased]
 ### Fixed
- - PNDA-2498 Application package data is now stored in HDFS with a reference to the path only held in the HBase record. This prevents HBase being overloaded with large packages (100MB+).
+- PNDA-2498 Application package data is now stored in HDFS with a reference to the path only held in the HBase record. This prevents HBase being overloaded with large packages (100MB+).
+
+### Changed
+- Pinned all python libraries to strict version numbers
+- Return all exceptions to API caller
 
 ## [0.2.1] 2016-12-12
 ### Changed
