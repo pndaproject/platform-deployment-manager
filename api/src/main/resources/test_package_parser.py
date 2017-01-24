@@ -69,18 +69,12 @@ class PackageParserTests(unittest.TestCase):
         }
 
         package_name = "test_package-1.0.2"
-
-        with open("%s.tar.gz" % package_name, "rb") as in_file:
-            package_data = in_file.read()
-
-        self.assertEqual(parser.get_package_metadata(package_data), expected_metadata)
+        self.assertEqual(parser.get_package_metadata("%s.tar.gz" % package_name), expected_metadata)
 
     def test_invalid_package(self):
         parser = PackageParser()
         package_name = "test_package-1.0.3"
-        with open("%s.tar.gz" % package_name, "rb") as in_file:
-            package_data = in_file.read()
-        self.assertRaises(FailedValidation, parser.get_package_metadata, package_data)
+        self.assertRaises(FailedValidation, parser.get_package_metadata, "%s.tar.gz" % package_name)
 
     def test_generate_properties(self):
         parser = PackageParser()
@@ -143,5 +137,4 @@ class PackageParserTests(unittest.TestCase):
             }
         }
         self.assertEqual(parser.properties_from_metadata(metadata), expected_properties)
-        
         

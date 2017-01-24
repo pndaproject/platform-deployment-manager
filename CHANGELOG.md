@@ -1,6 +1,14 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] 2017-01-20
+### Fixed
+- PNDA-2498: Application package data is now stored in HDFS with a reference to the path only held in the HBase record. This prevents HBase being overloaded with large packages (100MB+).
+
+### Changed
+- PNDA-2485: Pinned all python libraries to strict version numbers
+- PNDA-2499: Return all exceptions to API caller
+
 ## [0.2.1] 2016-12-12
 ### Changed
 - Externalized build logic from Jenkins to shell script so it can be reused
@@ -11,7 +19,7 @@ All notable changes to this project will be documented in this file.
 - PNDA-2233 Jupyter notebook plugin added to deployment manager
 
 ## [0.1.1] 2016-09-13
-### Changes
+### Changed
 - Improvements to documentation
 - Enhanced CI support
 
@@ -34,7 +42,7 @@ All notable changes to this project will be documented in this file.
 - Callback events are sent to the console data logger.
 - Application detail API now completed to return Yarn IDs for any Yarn applications associated with a PNDA application.
 
-### Fixed 
+### Fixed
 
 - Return IP address for webhdfs/HTTPFS endpoint instead of hostname
 - Timeout calls to package repository at 120 seconds.

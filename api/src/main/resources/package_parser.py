@@ -22,7 +22,6 @@ either express or implied.
 
 import json
 import tarfile
-import io
 import traceback
 import logging
 
@@ -42,14 +41,13 @@ class PackageParser(object):
                 properties[component_type][component_name] = component_detail['component_detail']['properties.json']
         return properties
 
-    def get_package_metadata(self, package_data):
+    def get_package_metadata(self, package_data_path):
 
         try:
             logging.debug("get_package_metadata")
             metadata = {}
 
-            file_like_object = io.BytesIO(package_data)
-            tar = tarfile.open(fileobj=file_like_object)
+            tar = tarfile.open(package_data_path)
             for name in sorted([member.name for member in tar.getmembers()]):
                 name_parts = name.split('/')
                 package_name = name_parts[0]

@@ -83,7 +83,11 @@ class BaseHandler(CorsMixin, tornado.web.RequestHandler):
                 self.finish(ex.msg)
             else:
                 self.set_status(500)
-                self.finish()
+                if "information" in str(ex):
+                    msg = str(ex)
+                else:
+                    msg = {"status": "UNKNOWN", "information": str(ex)}
+                self.finish(msg)
 
         IOLoop.instance().add_callback(callback=finish)
 
@@ -297,12 +301,16 @@ def main():
 
     deployer_utils.fill_hadoop_env(config['environment'])
 
-    package_repository = PackageRepoRestClient(config['config']["package_repository"])
+    package_repository = PackageRepoRestClient(config['config']["package_repository"], config['config']['stage_root'])
     dm = deployment_manager.DeploymentManager(package_repository,
                                               package_registrar.HbasePackageRegistrar(
-                                                  config['environment']['hbase_rest_server']),
+                                                  config['environment']['hbase_thrift_server'],
+                                                  config['environment']['webhdfs_host'],
+                                                  'hdfs',
+                                                  config['environment']['webhdfs_port'],
+                                                  config['config']['stage_root']),
                                               application_registrar.HbaseApplicationRegistrar(
-                                                  config['environment']['hbase_rest_server']),
+                                                  config['environment']['hbase_thrift_server']),
                                               config['environment'],
                                               config['config'])
 

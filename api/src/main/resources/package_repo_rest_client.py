@@ -25,12 +25,13 @@ from  exceptiondef import NotFound
 
 
 class PackageRepoRestClient(object):
-    def __init__(self, api_url):
+    def __init__(self, api_url, package_local_dir_path):
         """
         A client implementation for the package repository API
         :param api_url: A url describing the location to make REST calls to
         """
         self.api_url = api_url
+        self._package_local_dir_path = package_local_dir_path
 
     def put_package(self, package_name, package_data):
         """
@@ -48,12 +49,15 @@ class PackageRepoRestClient(object):
         """
         gets a package from the repository
         :param package_nam:
-        :return: the http response
+        :return: local path to file
         """
         if not expected_codes:
             expected_codes = [200]
         response = self.make_rest_get_request("/packages/" + package_name, expected_codes)
-        return response.content
+        local_path = "%s/%s" % (self._package_local_dir_path, package_name)
+        with open(local_path, 'wb') as local_file:
+            local_file.write(response.content)
+        return local_path
 
     def get_package_list(self, recency=None):
         """

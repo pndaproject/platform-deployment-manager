@@ -22,19 +22,27 @@ either express or implied.
 
 import logging
 import json
+
 import happybase
-from happybase.hbase.ttypes import AlreadyExists
+from Hbase_thrift import AlreadyExists
 
 from package_parser import PackageParser
+from deployer_utils import HDFS
 
 
 class HbasePackageRegistrar(object):
     COLUMN_DEPLOY_STATUS = "cf:deploy_status"
 
-    def __init__(self, hbase_host):
+    def __init__(self, hbase_host, hdfs_host, hdfs_user, hdfs_port, package_local_dir_path):
         self._hbase_host = hbase_host
+        self._hdfs_user = hdfs_user
+        self._hdfs_host = hdfs_host
+        self._hdfs_port = hdfs_port
+        self._hdfs_client = HDFS(hdfs_host, hdfs_port, hdfs_user)
         self._parser = PackageParser()
         self._table_name = 'platform_packages'
+        self._package_hdfs_dir_path = "/user/pnda/application_packages"
+        self._package_local_dir_path = package_local_dir_path
         if self._hbase_host is not None:
             connection = happybase.Connection(self._hbase_host)
             try:
@@ -45,10 +53,11 @@ class HbasePackageRegistrar(object):
             finally:
                 connection.close()
 
-    def set_package(self, package_name, package_data):
-        logging.debug("Storing %s, %s bytes", package_name, len(package_data))
-        metadata = self._parser.get_package_metadata(package_data)
-        key, data = self.generate_record(metadata, package_data)
+    def set_package(self, package_name, package_data_path):
+        logging.debug("Storing %s", package_name)
+        metadata = self._parser.get_package_metadata(package_data_path)
+        key, data = self.generate_record(metadata)
+        self._write_to_hdfs(package_data_path, data['cf:package_data'])
         self._write_to_db(key, data)
 
     def set_package_deploy_status(self, package_name, deploy_status):
@@ -62,6 +71,8 @@ class HbasePackageRegistrar(object):
 
     def delete_package(self, package_name):
         logging.debug("Deleting %s", package_name)
+        package_data_hdfs_path = self._read_from_db(package_name, ['cf:package_data'])['cf:package_data']
+        self._hdfs_client.remove(package_data_hdfs_path)
         connection = happybase.Connection(self._hbase_host)
         try:
             table = connection.table(self._table_name)
@@ -71,10 +82,12 @@ class HbasePackageRegistrar(object):
 
     def get_package_data(self, package_name):
         logging.debug("Reading %s", package_name)
-        package_data = self._read_from_db(package_name, ['cf:package_data'])
-        if len(package_data) == 0:
+        record = self._read_from_db(package_name, ['cf:package_data'])
+        if len(record) == 0:
             return None
-        return package_data['cf:package_data']
+        local_package_path = "%s/%s" % (self._package_local_dir_path, package_name)
+        self._read_from_hdfs(record['cf:package_data'], local_package_path)
+        return local_package_path
 
     def get_package_metadata(self, package_name):
         logging.debug("Reading %s", package_name)
@@ -114,12 +127,12 @@ class HbasePackageRegistrar(object):
             connection.close()
         return result
 
-    def generate_record(self, metadata, package_data):
+    def generate_record(self, metadata):
         return metadata["package_name"], {
             'cf:name': '-'.join(metadata["package_name"].split("-")[:-1]),
             'cf:version': metadata["package_name"].split("-")[-1],
             'cf:metadata': json.dumps(metadata),
-            'cf:package_data': package_data
+            'cf:package_data': "%s/%s" %  (self._package_hdfs_dir_path, metadata["package_name"])
         }
 
     def _read_from_db(self, key, columns):
@@ -131,6 +144,9 @@ class HbasePackageRegistrar(object):
             connection.close()
         return data
 
+    def _read_from_hdfs(self, source_hdfs_path, dest_local_path):
+        self._hdfs_client.stream_file_to_disk(source_hdfs_path, dest_local_path)
+
     def _write_to_db(self, key, data):
         connection = happybase.Connection(self._hbase_host)
         try:
@@ -138,3 +154,16 @@ class HbasePackageRegistrar(object):
             table.put(key, data)
         finally:
             connection.close()
+
+    def _write_to_hdfs(self, source_local_path, dest_hdfs_path):
+        with open(source_local_path, 'rb') as source_file:
+            first = True
+            chunk_size = 10*1024*1024
+            data_chunk = source_file.read(chunk_size)
+            while data_chunk:
+                if first:
+                    self._hdfs_client.create_file(data_chunk, dest_hdfs_path)
+                    first = False
+                else:
+                    self._hdfs_client.append_file(data_chunk, dest_hdfs_path)
+                data_chunk = source_file.read(chunk_size)
