@@ -25,6 +25,8 @@ either express or implied.
 import json
 import os
 import logging
+import platform
+from shutil import copy
 
 import deployer_utils
 from plugins.base_creator import Creator
@@ -35,12 +37,8 @@ class SparkStreamingCreator(Creator):
     def validate_component(self, component):
         errors = []
         file_list = component['component_detail']
-        if 'yarn-kill.py' not in file_list:
-            errors.append('missing file yarn-kill.py')
         if 'application.properties' not in file_list:
             errors.append('missing file application.properties')
-        if 'upstart.conf' not in file_list:
-            errors.append('missing file upstart.conf')
         if 'log4j.properties' not in file_list:
             errors.append('missing file log4j.properties')
         return errors
@@ -68,20 +66,47 @@ class SparkStreamingCreator(Creator):
 
     def create_component(self, staged_component_path, application_name, component, properties):
         logging.debug("create_component: %s %s %s", application_name, json.dumps(component), properties)
-
+        distro = platform.dist()
+        redhat = distro[0] == 'redhat'
         remote_component_tmp_path = '%s/%s/%s' % (
             '/tmp/%s' % self._namespace, application_name, component['component_name'])
         remote_component_install_path = '%s/%s/%s' % (
             '/opt/%s' % self._namespace, application_name, component['component_name'])
+        service_name = '%s-%s-%s' % (self._namespace, application_name, component['component_name'])
 
         key_file = self._environment['cluster_private_key']
         root_user = self._environment['cluster_root_user']
         target_host = 'localhost'
 
-        self._fill_properties('%s/%s' % (staged_component_path, 'upstart.conf'), properties)
-        self._fill_properties('%s/%s' % (staged_component_path, 'log4j.properties'), properties)
-        self._fill_properties('%s/%s' % (staged_component_path, 'application.properties'), properties)
-        self._fill_properties('%s/%s' % (staged_component_path, 'yarn-kill.py'), properties)
+        if 'component_spark_submit_args' not in properties:
+            properties['component_spark_submit_args'] = ''
+
+        if 'upstart.conf' in component['component_detail']:
+            # old style applications for backward compatibility
+            service_script = 'upstart.conf'
+            service_script_install_path = '/etc/init/%s.conf' % service_name
+        else:
+            # new style applications that don't need to provide upstart.conf or yarn-kill.py
+            if 'component_main_class' not in properties:
+                raise Exception('properties.json must contain "main_class" for %s sparkStreaming %s' % (application_name, component['component_name']))
+            if 'component_main_jar' not in properties:
+                raise Exception('properties.json must contain "main_jar" for %s sparkStreaming %s' % (application_name, component['component_name']))
+
+            this_dir = os.path.dirname(os.path.realpath(__file__))
+            copy(os.path.join(this_dir, 'yarn-kill.py'), staged_component_path)
+            distro = platform.dist()
+            if redhat:
+                service_script = 'systemd.service.tpl'
+                service_script_install_path = '/usr/lib/systemd/system/%s.service' % service_name
+            else:
+                service_script = 'upstart.conf.tpl'
+                service_script_install_path = '/etc/init/%s.conf' % service_name
+            copy(os.path.join(this_dir, service_script), staged_component_path)
+
+        self._fill_properties(os.path.join(staged_component_path, service_script), properties)
+        self._fill_properties(os.path.join(staged_component_path, 'log4j.properties'), properties)
+        self._fill_properties(os.path.join(staged_component_path, 'application.properties'), properties)
+        self._fill_properties(os.path.join(staged_component_path, 'yarn-kill.py'), properties)
 
         mkdircommands = []
         mkdircommands.append('mkdir -p %s' % remote_component_tmp_path)
@@ -99,32 +124,33 @@ class SparkStreamingCreator(Creator):
                                     ['sudo mkdir -p %s' % remote_component_install_path,
                                      'sudo mv %s %s' % (remote_component_tmp_path + '/log4j.properties', remote_component_install_path + '/log4j.properties')])
 
+        if 'component_main_jar' in properties:
+            main_jar_name = properties['component_main_jar']
+        else:
+            main_jar_name = '*.jar'
+
         commands = []
-        service_name = '%s-%s-%s' % (self._namespace, application_name, component['component_name'])
-        upstart_script = '/etc/init/%s.conf' % service_name
-        commands.append('sudo cp %s/upstart.conf %s' %
-                        (remote_component_tmp_path, upstart_script))
-        commands.append('sudo cp %s/* %s' %
-                        (remote_component_tmp_path, remote_component_install_path))
-        commands.append('sudo chmod a+x %s/yarn-kill.py' %
-                        (remote_component_install_path))
-        commands.append('cd %s && sudo jar uf *.jar application.properties' %
-                        (remote_component_install_path))
+        commands.append('sudo cp %s/%s %s' % (remote_component_tmp_path, service_script, service_script_install_path))
+        commands.append('sudo cp %s/* %s' % (remote_component_tmp_path, remote_component_install_path))
+        commands.append('sudo chmod a+x %s/yarn-kill.py' % (remote_component_install_path))
+        commands.append('cd %s && sudo jar uf %s application.properties' % (remote_component_install_path, main_jar_name))
         commands.append('sudo rm -rf %s' % (remote_component_tmp_path))
         deployer_utils.exec_ssh(target_host, root_user, key_file, commands)
 
         undo_commands = []
-        undo_commands.append('sudo initctl stop %s\n' % service_name)
+        undo_commands.append('sudo service %s stop\n' % service_name)
         undo_commands.append('sudo rm -rf %s\n' % remote_component_install_path)
-        undo_commands.append('sudo rm  %s\n' % upstart_script)
+        undo_commands.append('sudo rm  %s\n' % service_script_install_path)
         logging.debug("uninstall commands: %s", undo_commands)
 
         start_commands = []
-        start_commands.append('sudo initctl start %s\n' % service_name)
+        if redhat:
+            start_commands.append('sudo systemctl daemon-reload\n')
+        start_commands.append('sudo service %s start\n' % service_name)
         logging.debug("start commands: %s", start_commands)
 
         stop_commands = []
-        stop_commands.append('sudo initctl stop %s\n' % service_name)
+        stop_commands.append('sudo service %s stop\n' % service_name)
         logging.debug("stop commands: %s", stop_commands)
 
         return {'ssh': undo_commands, 'start_cmds': start_commands, 'stop_cmds': stop_commands}
