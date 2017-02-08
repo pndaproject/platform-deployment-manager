@@ -54,7 +54,8 @@ class ApplicationCreatorTests(unittest.TestCase):
                     "component_detail": {
                         "properties.json": {
                             "property1": "1",
-                            "property2": "two"
+                            "main_class": "abc",
+                            "main_jar": "abc.jar",
                         }
                     },
                     "component_path": "test_package-1.0.2/sparkStreaming/componentC",
@@ -155,8 +156,9 @@ class ApplicationCreatorTests(unittest.TestCase):
     @patch('application_creator.shutil')
     @patch('application_creator.os')
     @patch('application_creator.tarfile')
+    @patch('shutil.copy')
     # pylint: disable=unused-argument
-    def test_create_application(self, tar_mock, os_mock, shutil_mock, spur_ssh,
+    def test_create_application(self, copy_mock, tar_mock, os_mock, shutil_mock, spur_ssh,
                                 hdfs_client_mock, post_mock, put_mock, exec_ssh_mock,
                                 os_sys_mock, dt_mock, hive_mock, hbase_mock):
         dt_mock.utcnow.return_value = (datetime(2013, 01, 01))
@@ -183,7 +185,7 @@ class ApplicationCreatorTests(unittest.TestCase):
         exec_ssh_mock.assert_any_call('nm1', 'root_user', 'keyfile.pem', ['sudo mkdir -p /opt/ns/aname/componentC', 'sudo mv /tmp/ns/aname/componentC/log4j.properties /opt/ns/aname/componentC/log4j.properties'])
         exec_ssh_mock.assert_any_call('nm2', 'root_user', 'keyfile.pem', ['mkdir -p /tmp/ns/aname/componentC'])
         exec_ssh_mock.assert_any_call('nm2', 'root_user', 'keyfile.pem', ['sudo mkdir -p /opt/ns/aname/componentC', 'sudo mv /tmp/ns/aname/componentC/log4j.properties /opt/ns/aname/componentC/log4j.properties'])
-        exec_ssh_mock.assert_any_call('localhost', 'root_user', 'keyfile.pem', ['sudo cp /tmp/ns/aname/componentC/upstart.conf /etc/init/ns-aname-componentC.conf', 'sudo cp /tmp/ns/aname/componentC/* /opt/ns/aname/componentC', 'sudo chmod a+x /opt/ns/aname/componentC/yarn-kill.py', 'cd /opt/ns/aname/componentC && sudo jar uf *.jar application.properties', 'sudo rm -rf /tmp/ns/aname/componentC'])
+        exec_ssh_mock.assert_any_call('localhost', 'root_user', 'keyfile.pem', ['sudo cp /tmp/ns/aname/componentC/upstart.conf.tpl /etc/init/ns-aname-componentC.conf', 'sudo cp /tmp/ns/aname/componentC/* /opt/ns/aname/componentC', 'sudo chmod a+x /opt/ns/aname/componentC/yarn-kill.py', 'cd /opt/ns/aname/componentC && sudo jar uf abc.jar application.properties', 'sudo rm -rf /tmp/ns/aname/componentC'])
 
     @patch('starbase.Connection')
     @patch('pyhs2.connect')
@@ -260,8 +262,9 @@ class ApplicationCreatorTests(unittest.TestCase):
     @patch('application_creator.shutil')
     @patch('application_creator.os')
     @patch('application_creator.tarfile')
+    @patch('shutil.copy')
     # pylint: disable=unused-argument
-    def test_app_name_ok(self, tar_mock, os_mock, shutil_mock, spur_ssh,
+    def test_app_name_ok(self, copy_mock, tar_mock, os_mock, shutil_mock, spur_ssh,
                          hdfs_client_mock, post_mock, put_mock, exec_ssh_mock,
                          os_sys_mock, dt_mock, hive_mock, hbase_mock):
 
@@ -310,9 +313,7 @@ class ApplicationCreatorTests(unittest.TestCase):
                 'componentA': ['missing file workflow.xml'],
                 'componentB': ['missing file workflow.xml']},
             'sparkStreaming': {
-                'componentC': ['missing file yarn-kill.py',
-                               'missing file application.properties',
-                               'missing file upstart.conf',
+                'componentC': ['missing file application.properties',
                                'missing file log4j.properties']}}
         self.assertEqual(result, expected_report)
 
