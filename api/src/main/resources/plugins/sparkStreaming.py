@@ -80,6 +80,8 @@ class SparkStreamingCreator(Creator):
 
         if 'component_spark_submit_args' not in properties:
             properties['component_spark_submit_args'] = ''
+        if 'component_py_files' not in properties:
+            properties['component_py_files'] = ''
 
         if 'upstart.conf' in component['component_detail']:
             # old style applications for backward compatibility
@@ -87,19 +89,25 @@ class SparkStreamingCreator(Creator):
             service_script_install_path = '/etc/init/%s.conf' % service_name
         else:
             # new style applications that don't need to provide upstart.conf or yarn-kill.py
-            if 'component_main_class' not in properties:
+            if 'component_main_jar' in properties and 'component_main_class' not in properties:
                 raise Exception('properties.json must contain "main_class" for %s sparkStreaming %s' % (application_name, component['component_name']))
-            if 'component_main_jar' not in properties:
-                raise Exception('properties.json must contain "main_jar" for %s sparkStreaming %s' % (application_name, component['component_name']))
+
+            java_app = None
+            if 'component_main_jar' in properties:
+                java_app = True
+            elif 'component_main_py' in properties:
+                java_app = False
+            else:
+                raise Exception('properties.json must contain "main_jar or main_py" for %s sparkStreaming %s' % (application_name, component['component_name']))
 
             this_dir = os.path.dirname(os.path.realpath(__file__))
             copy(os.path.join(this_dir, 'yarn-kill.py'), staged_component_path)
             distro = platform.dist()
             if redhat:
-                service_script = 'systemd.service.tpl'
+                service_script = 'systemd.service.tpl' if java_app else 'systemd.service.py.tpl'
                 service_script_install_path = '/usr/lib/systemd/system/%s.service' % service_name
             else:
-                service_script = 'upstart.conf.tpl'
+                service_script = 'upstart.conf.tpl' if java_app else 'upstart.conf.py.tpl'
                 service_script_install_path = '/etc/init/%s.conf' % service_name
             copy(os.path.join(this_dir, service_script), staged_component_path)
 
