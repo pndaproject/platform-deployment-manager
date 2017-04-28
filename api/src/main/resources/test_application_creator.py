@@ -157,8 +157,9 @@ class ApplicationCreatorTests(unittest.TestCase):
     @patch('application_creator.os')
     @patch('application_creator.tarfile')
     @patch('shutil.copy')
+    @patch('platform.dist')
     # pylint: disable=unused-argument
-    def test_create_application(self, copy_mock, tar_mock, os_mock, shutil_mock, spur_ssh,
+    def test_create_application(self, dist_mock, copy_mock, tar_mock, os_mock, shutil_mock, spur_ssh,
                                 hdfs_client_mock, post_mock, put_mock, exec_ssh_mock,
                                 os_sys_mock, dt_mock, hive_mock, hbase_mock):
         dt_mock.utcnow.return_value = (datetime(2013, 01, 01))
@@ -170,6 +171,7 @@ class ApplicationCreatorTests(unittest.TestCase):
                 return {'id': 'someid'}
 
         post_mock.return_value = Resp()
+        dist_mock.return_value = 'ubuntu'
         with patch("__builtin__.open", mock_open(read_data="[]")):
             creator = ApplicationCreator(self.config, self.environment, self.service)
             creator.create_application('abcd', self.package_metadata, 'aname', self.property_overrides)
