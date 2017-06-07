@@ -41,26 +41,127 @@ def connect_cm(cm_api, cm_username, cm_password):
     return api
 
 
-def get_named_service(cm_host, cluster_name, service_name, user_name='admin', password='admin'):
+def get_nameservice(cm_host, cluster_name, service_name, user_name='admin', password='admin'):
     request_url = 'http://%s:7180/api/v11/clusters/%s/services/%s/nameservices' % (cm_host,
                                                                                    cluster_name,
                                                                                    service_name)
     result = requests.get(request_url, auth=(user_name, password))
-    named_service = ""
+    nameservice = ""
     if result.status_code == 200:
         response = result.json()
         if 'items' in response:
-            named_service = response['items'][0]['name']
-            logging.debug("Found named service %s for %s", named_service, service_name)
-    return named_service
+            nameservice = response['items'][0]['name']
+            logging.debug("Found named service %s for %s", nameservice, service_name)
+    return nameservice
 
 
 def fill_hadoop_env(env):
+    if env['hadoop_distro'] == 'CDH':
+        fill_hadoop_env_cdh(env)
+    else:
+        fill_hadoop_env_hdp(env)
+
+    logging.debug(env)
+
+def ambari_request(ambari, uri):
+    hadoop_manager_ip = ambari[0]
+    hadoop_manager_username = ambari[1]
+    hadoop_manager_password = ambari[2]
+    if uri.startswith("http"):
+        full_uri = uri
+    else:
+        full_uri = 'http://%s:8080/api/v1%s' % (hadoop_manager_ip, uri)
+
+    headers = {'X-Requested-By': hadoop_manager_username}
+    auth = (hadoop_manager_username, hadoop_manager_password)
+    return requests.get(full_uri, auth=auth, headers=headers).json()
+
+def component_host(component_detail):
+    host_list = ''
+    for host_detail in component_detail['host_components']:
+        if len(host_list) > 0:
+            host_list += ','
+        host_list += host_detail['HostRoles']['host_name']
+    return host_list
+
+def fill_hadoop_env_hdp(env):
+
+    hadoop_manager_ip = env['hadoop_manager_host']
+    hadoop_manager_username = env['hadoop_manager_username']
+    hadoop_manager_password = env['hadoop_manager_password']
+    ambari = (hadoop_manager_ip, hadoop_manager_username, hadoop_manager_password)
+    cluster_name = ambari_request(ambari, '/clusters')['items'][0]['Clusters']['cluster_name']
+
+    logging.debug('getting service list for %s', cluster_name)
+    env['cm_status_links'] = {}
+    nameservice = None
+
+    services = ambari_request(ambari, '/clusters/%s/services' % cluster_name)['items']
+    for service in services:
+        service_name = service['ServiceInfo']['service_name']
+        env['cm_status_links']['%s' % service_name] = 'http://%s:8080/#/main/services/%s/summary' % (hadoop_manager_ip, service_name)
+        service_components = ambari_request(ambari, service['href'] + '/components')['items']
+
+        if service_name == "HDFS":
+            #TODO Nameservice for HDP here
+            if nameservice:
+                env['name_node'] = 'hdfs://%s' % nameservice
+
+        for component in service_components:
+            component_detail = ambari_request(ambari, component['href'])
+            role_name = component_detail['ServiceComponentInfo']['component_name']
+
+            if  role_name == "NAMENODE":
+                if nameservice is None:
+                    env['name_node'] = 'hdfs://%s:8020' % component_host(component_detail)
+
+                #TODO this should be httpfs - needed for HA and append mode doesn't work with plain webhdfs anyway
+                env['webhdfs_host'] = '%s' % component_host(component_detail)
+                env['webhdfs_port'] = '50070'
+
+            elif role_name == "RESOURCEMANAGER":
+                rm_host = component_host(component_detail)
+                if len(rm_host.split(',')) > 1:
+                    main_rm_host = rm_host.split(',')[0]
+                    backup_rm_host = rm_host.split(',')[1]
+                else:
+                    main_rm_host = rm_host
+                    backup_rm_host = None
+                env['yarn_resource_manager_host'] = '%s' % main_rm_host
+                env['yarn_resource_manager_port'] = '8088'
+                env['yarn_resource_manager_mr_port'] = '8032'
+                if backup_rm_host is not None:
+                    env['yarn_resource_manager_host_backup'] = '%s' % component_host(component_detail)
+                    env['yarn_resource_manager_port_backup'] = '8088'
+                    env['yarn_resource_manager_mr_port_backup'] = '8032'
+
+            elif role_name == "NODEMANAGER":
+                env['yarn_node_managers'] = '%s' % component_host(component_detail)
+
+            elif role_name == "ZOOKEEPER_SERVER":
+                env['zookeeper_quorum'] = '%s' % component_host(component_detail)
+                env['zookeeper_port'] = '2181'
+
+            elif role_name == "HBASE_MASTER":
+                env['hbase_rest_server'] = '%s' % component_host(component_detail)
+                env['hbase_rest_port'] = '20550'
+                env['hbase_thrift_server'] = '%s' % component_host(component_detail)
+
+            elif role_name == "OOZIE_SERVER":
+                env['oozie_uri'] = 'http://%s:11000/oozie' % component_host(component_detail)
+
+            elif role_name == "HIVE_SERVER":
+                env['hive_server'] = '%s' % component_host(component_detail)
+                env['hive_port'] = '10000'
+
+    logging.debug(env)
+
+def fill_hadoop_env_cdh(env):
     # pylint: disable=E1103
     api = connect_cm(
-        env['cloudera_manager_host'],
-        env['cloudera_manager_username'],
-        env['cloudera_manager_password'])
+        env['hadoop_manager_host'],
+        env['hadoop_manager_username'],
+        env['hadoop_manager_password'])
 
     for cluster_detail in api.get_all_clusters():
         cluster_name = cluster_detail.name
@@ -73,14 +174,14 @@ def fill_hadoop_env(env):
     for service in cluster.get_all_services():
         env['cm_status_links']['%s' % service.name] = service.serviceUrl
         if service.type == "HDFS":
-            named_service = get_named_service(env['cloudera_manager_host'], cluster_name,
+            nameservice = get_nameservice(env['hadoop_manager_host'], cluster_name,
                                               service.name,
-                                              user_name=env['cloudera_manager_username'],
-                                              password=env['cloudera_manager_password'])
-            if named_service:
-                env['name_node'] = 'hdfs://%s' % named_service
+                                              user_name=env['hadoop_manager_username'],
+                                              password=env['hadoop_manager_password'])
+            if nameservice:
+                env['name_node'] = 'hdfs://%s' % nameservice
             for role in service.get_all_roles():
-                if not named_service and role.type == "NAMENODE":
+                if not nameservice and role.type == "NAMENODE":
                     env['name_node'] = 'hdfs://%s:8020' % api.get_host(role.hostRef.hostId).hostname
                 if role.type == "HTTPFS":
                     env['webhdfs_host'] = '%s' % api.get_host(role.hostRef.hostId).ipAddress
@@ -150,9 +251,6 @@ def fill_hadoop_env(env):
                     env['hue_host'] = '%s' % api.get_host(role.hostRef.hostId).hostname
                     env['hue_port'] = '8888'
                     break
-
-    logging.debug(env)
-
 
 def tree(archive_filepath):
     file_handle = file(archive_filepath, 'rb')
