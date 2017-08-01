@@ -4,6 +4,5 @@ respawn
 respawn limit unlimited
 pre-start exec /opt/${environment_namespace}/${component_application}/${component_name}/yarn-kill.py
 pre-stop exec /opt/${environment_namespace}/${component_application}/${component_name}/yarn-kill.py
-env programDir=/opt/${environment_namespace}/${component_application}/${component_name}/
 chdir /opt/${environment_namespace}/${component_application}/${component_name}/
-exec sudo -u hdfs spark-submit --driver-java-options "-Dlog4j.configuration=file:///${programDir}log4j.properties" --conf 'spark.executor.extraJavaOptions=-Dlog4j.configuration=file:///${programDir}log4j.properties' --name '${component_job_name}' --master yarn-cluster --py-files application.properties,${component_py_files} ${component_spark_submit_args} ${component_main_py}
+exec sudo -u hdfs spark-submit --driver-java-options "-Dlog4j.configuration=file:///opt/${environment_namespace}/${component_application}/${component_name}/log4j.properties" --conf 'spark.executor.extraJavaOptions=-Dlog4j.configuration=file:///opt/${environment_namespace}/${component_application}/${component_name}/log4j.properties' --name '${component_job_name}' --master yarn-cluster --py-files application.properties,${component_py_files} ${component_spark_submit_args} ${component_main_py}
