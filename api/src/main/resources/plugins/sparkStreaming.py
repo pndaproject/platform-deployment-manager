@@ -132,6 +132,8 @@ class SparkStreamingCreator(Creator):
                                     ['sudo mkdir -p %s' % remote_component_install_path,
                                      'sudo mv %s %s' % (remote_component_tmp_path + '/log4j.properties', remote_component_install_path + '/log4j.properties')])
 
+        if 'component_main_py' in properties:
+            main_jar_name = None
         if 'component_main_jar' in properties:
             main_jar_name = properties['component_main_jar']
         else:
@@ -141,7 +143,8 @@ class SparkStreamingCreator(Creator):
         commands.append('sudo cp %s/%s %s' % (remote_component_tmp_path, service_script, service_script_install_path))
         commands.append('sudo cp %s/* %s' % (remote_component_tmp_path, remote_component_install_path))
         commands.append('sudo chmod a+x %s/yarn-kill.py' % (remote_component_install_path))
-        commands.append('cd %s && sudo jar uf %s application.properties' % (remote_component_install_path, main_jar_name))
+        if main_jar_name is not None:
+            commands.append('cd %s && sudo jar uf %s application.properties' % (remote_component_install_path, main_jar_name))
         commands.append('sudo rm -rf %s' % (remote_component_tmp_path))
         deployer_utils.exec_ssh(target_host, root_user, key_file, commands)
 
