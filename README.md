@@ -399,9 +399,9 @@ hdfspath_path_name      generated from entries in hdfs.json
 ## Environment Variables ##
 These can be obtained with the [environment endpoints API](#environment-endpoints-api)
 ````
-environment_cloudera_manager_host       192.168.1.2
-environment_cloudera_manager_password   admin
-environment_cloudera_manager_username   admin
+environment_hadoop_manager_host       192.168.1.2
+environment_hadoop_manager_password   admin
+environment_hadoop_manager_username   admin
 environment_cluster_private_key         ./dm.pem
 environment_cluster_root_user           cloud-user
 environment_hbase_rest_port             20550
