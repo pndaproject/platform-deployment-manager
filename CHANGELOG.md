@@ -1,13 +1,18 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## Unreleased
+## [Unreleased]
+### Added:
+- PNDA-2445: Support for Hortonworks HDP
+
+## [0.4.0] 2017-05-23
 ### Added
- - PNDA-2729: Added support for spark streaming jobs written in python (pyspark). Use `main_py` instead of `main_jar` in properties.json and specify additional files using `py_files`.
-- PNDA-2445: Support for Hortonworks HDP hadoop distro.
+- PNDA-2729: Added support for spark streaming jobs written in python (pyspark). Use `main_py` instead of `main_jar` in properties.json and specify additional files using `py_files`.
+- PNDA-2784: Make tests pass on RedHat
 
 ### Changed
- - PNDA-2700: Spark streaming jobs no longer require upstart.conf or yarn-kill.py files, default ones are supplied by the deployment manager.
+- PNDA-2700: Spark streaming jobs no longer require upstart.conf or yarn-kill.py files, default ones are supplied by the deployment manager.
+- PNDA-2782: Disabled Ubuntu-only test
 
 
 ## [0.3.0] 2017-01-20
