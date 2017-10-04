@@ -27,7 +27,6 @@ import os
 import logging
 import platform
 from shutil import copy
-
 import deployer_utils
 from plugins.base_creator import Creator
 

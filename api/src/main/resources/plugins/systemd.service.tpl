@@ -3,7 +3,7 @@ Description=PNDA Application: ${component_application}-${component_name}
 
 [Service]
 Type=simple
-User=hdfs
+User=${application_user}
 WorkingDirectory=/opt/${environment_namespace}/${component_application}/${component_name}/
 ExecStartPre=/opt/${environment_namespace}/${component_application}/${component_name}/yarn-kill.py
 ExecStopPost=/opt/${environment_namespace}/${component_application}/${component_name}/yarn-kill.py
