@@ -44,8 +44,7 @@ class ApplicationCreatorTests(unittest.TestCase):
         'hbase_rest_port': '123',
         'hive_server': 'hivehost',
         'hive_port': '124',
-        'opentsdb': '1.2.3.5:1234',
-        'application_default_user': 'jenkins'
+        'opentsdb': '1.2.3.5:1234'
     }
     service = 'ns'
     package_metadata = {
@@ -133,8 +132,7 @@ class ApplicationCreatorTests(unittest.TestCase):
             'component_hdfs_root': '/user/aname/componentA',
             'job_handle': 'someid1',
             'component_job_name': 'aname-componentA-job',
-            'component_name': 'componentA',
-            'application_user': 'jenkins'
+            'component_name': 'componentA'
         }, {
             'descriptors': {
                 'hdfs.json': []
@@ -142,8 +140,7 @@ class ApplicationCreatorTests(unittest.TestCase):
             'component_hdfs_root': '/user/aname/componentB',
             'job_handle': 'someid2',
             'component_job_name': 'aname-componentB-job',
-            'component_name': 'componentB',
-            'application_user': 'jenkins'
+            'component_name': 'componentB'
         }]
     }
 
@@ -180,10 +177,10 @@ class ApplicationCreatorTests(unittest.TestCase):
             creator.create_application('abcd', self.package_metadata, 'aname', self.property_overrides)
         print post_mock.call_args_list
         # pylint: disable=line-too-long
-        post_mock.assert_any_call('oozie/v1/jobs', data='<?xml version="1.0" encoding="UTF-8" ?><configuration><property><name>environment_application_default_user</name><value>jenkins</value></property><property><name>environment_cluster_private_key</name><value>keyfile.pem</value></property><property><name>environment_hbase_thrift_server</name><value>hbasehost</value></property><property><name>environment_webhdfs_host</name><value>webhdfshost</value></property><property><name>environment_opentsdb</name><value>1.2.3.5:1234</value></property><property><name>environment_yarn_node_managers</name><value>nm1,nm2</value></property><property><name>environment_webhdfs_port</name><value>webhdfsport</value></property><property><name>environment_hbase_rest_server</name><value>hbasehost</value></property><property><name>environment_oozie_uri</name><value>oozie</value></property><property><name>environment_hbase_rest_port</name><value>123</value></property><property><name>environment_cluster_root_user</name><value>root_user</value></property><property><name>environment_hive_port</name><value>124</value></property><property><name>environment_name_node</name><value>namenode</value></property><property><name>environment_hive_server</name><value>hivehost</value></property><property><name>component_property3</name><value>3</value></property><property><name>component_property4</name><value>nine</value></property><property><name>component_application</name><value>aname</value></property><property><name>component_name</name><value>componentA</value></property><property><name>component_job_name</name><value>aname-componentA-job</value></property><property><name>component_hdfs_root</name><value>/user/aname/componentA</value></property><property><name>application_user</name><value>jenkins</value></property><property><name>deployment_start</name><value>2013-01-01T00:02Z</value></property><property><name>deployment_end</name><value>2013-01-08T00:02Z</value></property><property><name>user.name</name><value>jenkins</value></property><property><name>oozie.use.system.libpath</name><value>true</value></property><property><name>oozie.libpath</name><value>/user/deployment/platform</value></property><property><name>oozie.wf.application.path</name><value>namenode/user/aname/componentA</value></property></configuration>', headers={'Content-Type': 'application/xml'})
-        post_mock.assert_any_call('oozie/v1/jobs', data='<?xml version="1.0" encoding="UTF-8" ?><configuration><property><name>environment_application_default_user</name><value>jenkins</value></property><property><name>environment_cluster_private_key</name><value>keyfile.pem</value></property><property><name>environment_hbase_thrift_server</name><value>hbasehost</value></property><property><name>environment_webhdfs_host</name><value>webhdfshost</value></property><property><name>environment_opentsdb</name><value>1.2.3.5:1234</value></property><property><name>environment_yarn_node_managers</name><value>nm1,nm2</value></property><property><name>environment_webhdfs_port</name><value>webhdfsport</value></property><property><name>environment_hbase_rest_server</name><value>hbasehost</value></property><property><name>environment_oozie_uri</name><value>oozie</value></property><property><name>environment_hbase_rest_port</name><value>123</value></property><property><name>environment_cluster_root_user</name><value>root_user</value></property><property><name>environment_hive_port</name><value>124</value></property><property><name>environment_name_node</name><value>namenode</value></property><property><name>environment_hive_server</name><value>hivehost</value></property><property><name>component_application</name><value>aname</value></property><property><name>component_name</name><value>componentB</value></property><property><name>component_job_name</name><value>aname-componentB-job</value></property><property><name>component_hdfs_root</name><value>/user/aname/componentB</value></property><property><name>application_user</name><value>jenkins</value></property><property><name>deployment_start</name><value>2013-01-01T00:02Z</value></property><property><name>deployment_end</name><value>2013-01-08T00:02Z</value></property><property><name>user.name</name><value>jenkins</value></property><property><name>oozie.use.system.libpath</name><value>true</value></property><property><name>oozie.libpath</name><value>/user/deployment/platform</value></property><property><name>oozie.wf.application.path</name><value>namenode/user/aname/componentB</value></property></configuration>', headers={'Content-Type': 'application/xml'})
+        post_mock.assert_any_call('oozie/v1/jobs', data='<?xml version="1.0" encoding="UTF-8" ?><configuration><property><name>environment_cluster_private_key</name><value>keyfile.pem</value></property><property><name>environment_hbase_thrift_server</name><value>hbasehost</value></property><property><name>environment_webhdfs_host</name><value>webhdfshost</value></property><property><name>environment_opentsdb</name><value>1.2.3.5:1234</value></property><property><name>environment_yarn_node_managers</name><value>nm1,nm2</value></property><property><name>environment_webhdfs_port</name><value>webhdfsport</value></property><property><name>environment_hbase_rest_server</name><value>hbasehost</value></property><property><name>environment_oozie_uri</name><value>oozie</value></property><property><name>environment_hbase_rest_port</name><value>123</value></property><property><name>environment_cluster_root_user</name><value>root_user</value></property><property><name>environment_hive_port</name><value>124</value></property><property><name>environment_name_node</name><value>namenode</value></property><property><name>environment_hive_server</name><value>hivehost</value></property><property><name>component_property3</name><value>3</value></property><property><name>component_property4</name><value>nine</value></property><property><name>component_application</name><value>aname</value></property><property><name>component_name</name><value>componentA</value></property><property><name>component_job_name</name><value>aname-componentA-job</value></property><property><name>component_hdfs_root</name><value>/user/aname/componentA</value></property><property><name>deployment_start</name><value>2013-01-01T00:02Z</value></property><property><name>deployment_end</name><value>2013-01-08T00:02Z</value></property><property><name>user.name</name><value>hdfs</value></property><property><name>oozie.use.system.libpath</name><value>true</value></property><property><name>oozie.libpath</name><value>/user/deployment/platform</value></property><property><name>oozie.wf.application.path</name><value>namenode/user/aname/componentA</value></property></configuration>', headers={'Content-Type': 'application/xml'})
+        post_mock.assert_any_call('oozie/v1/jobs', data='<?xml version="1.0" encoding="UTF-8" ?><configuration><property><name>environment_cluster_private_key</name><value>keyfile.pem</value></property><property><name>environment_hbase_thrift_server</name><value>hbasehost</value></property><property><name>environment_webhdfs_host</name><value>webhdfshost</value></property><property><name>environment_opentsdb</name><value>1.2.3.5:1234</value></property><property><name>environment_yarn_node_managers</name><value>nm1,nm2</value></property><property><name>environment_webhdfs_port</name><value>webhdfsport</value></property><property><name>environment_hbase_rest_server</name><value>hbasehost</value></property><property><name>environment_oozie_uri</name><value>oozie</value></property><property><name>environment_hbase_rest_port</name><value>123</value></property><property><name>environment_cluster_root_user</name><value>root_user</value></property><property><name>environment_hive_port</name><value>124</value></property><property><name>environment_name_node</name><value>namenode</value></property><property><name>environment_hive_server</name><value>hivehost</value></property><property><name>component_application</name><value>aname</value></property><property><name>component_name</name><value>componentB</value></property><property><name>component_job_name</name><value>aname-componentB-job</value></property><property><name>component_hdfs_root</name><value>/user/aname/componentB</value></property><property><name>deployment_start</name><value>2013-01-01T00:02Z</value></property><property><name>deployment_end</name><value>2013-01-08T00:02Z</value></property><property><name>user.name</name><value>hdfs</value></property><property><name>oozie.use.system.libpath</name><value>true</value></property><property><name>oozie.libpath</name><value>/user/deployment/platform</value></property><property><name>oozie.wf.application.path</name><value>namenode/user/aname/componentB</value></property></configuration>', headers={'Content-Type': 'application/xml'})
 
-        put_mock.assert_any_call('oozie/v1/job/someid?action=suspend&user.name=jenkins')
+        put_mock.assert_any_call('oozie/v1/job/someid?action=suspend&user.name=hdfs')
 
         exec_ssh_mock.assert_any_call('localhost', 'root_user', 'keyfile.pem', ['mkdir -p /tmp/ns/aname/componentC', 'sudo mkdir -p /opt/ns/aname/componentC'])
         exec_ssh_mock.assert_any_call('nm1', 'root_user', 'keyfile.pem', ['mkdir -p /tmp/ns/aname/componentC'])
@@ -291,10 +288,10 @@ class ApplicationCreatorTests(unittest.TestCase):
         creator = ApplicationCreator(self.config, self.environment, self.service)
         creator.start_application('name', self.create_data)
         exec_ssh_mock.assert_any_call('localhost', 'root_user', 'keyfile.pem', ['sudo initctl start ns-aname-componentC\n'])
-        put_mock.assert_any_call('oozie/v1/job/someid1?action=resume&user.name=jenkins')
-        put_mock.assert_any_call('oozie/v1/job/someid2?action=resume&user.name=jenkins')
-        put_mock.assert_any_call('oozie/v1/job/someid1?action=start&user.name=jenkins')
-        put_mock.assert_any_call('oozie/v1/job/someid2?action=start&user.name=jenkins')
+        put_mock.assert_any_call('oozie/v1/job/someid1?action=resume&user.name=hdfs')
+        put_mock.assert_any_call('oozie/v1/job/someid2?action=resume&user.name=hdfs')
+        put_mock.assert_any_call('oozie/v1/job/someid1?action=start&user.name=hdfs')
+        put_mock.assert_any_call('oozie/v1/job/someid2?action=start&user.name=hdfs')
 
     @patch('deployer_utils.exec_ssh')
     @patch('requests.put')
@@ -302,8 +299,8 @@ class ApplicationCreatorTests(unittest.TestCase):
         creator = ApplicationCreator(self.config, self.environment, self.service)
         creator.stop_application('name', self.create_data)
         exec_ssh_mock.assert_any_call('localhost', 'root_user', 'keyfile.pem', ['sudo initctl stop ns-aname-componentC\n'])
-        put_mock.assert_any_call('oozie/v1/job/someid1?action=suspend&user.name=jenkins')
-        put_mock.assert_any_call('oozie/v1/job/someid2?action=suspend&user.name=jenkins')
+        put_mock.assert_any_call('oozie/v1/job/someid1?action=suspend&user.name=hdfs')
+        put_mock.assert_any_call('oozie/v1/job/someid2?action=suspend&user.name=hdfs')
 
     def test_validate_package(self):
         creator = ApplicationCreator(self.config, self.environment, self.service)
@@ -360,8 +357,8 @@ class ApplicationCreatorTests(unittest.TestCase):
         exec_ssh_mock.assert_any_call('localhost', 'root_user', 'keyfile.pem', [
             'sudo initctl stop ns-aname-componentC\n', 'sudo rm -rf /opt/ns/aname/componentC\n', 'sudo rm  /etc/init/ns-aname-componentC.conf\n'])
 
-        put_mock.assert_any_call('oozie/v1/job/someid1?action=kill&user.name=jenkins')
-        put_mock.assert_any_call('oozie/v1/job/someid2?action=kill&user.name=jenkins')
+        put_mock.assert_any_call('oozie/v1/job/someid1?action=kill&user.name=hdfs')
+        put_mock.assert_any_call('oozie/v1/job/someid2?action=kill&user.name=hdfs')
 
     # pylint: disable=line-too-long
     @patch('requests.get')
@@ -371,9 +368,9 @@ class ApplicationCreatorTests(unittest.TestCase):
             "apps": {
                 "app": [{
                     "id": "application_1455877292606_13009",
-                    "user": "jenkins",
+                    "user": "hdfs",
                     "name": "aname-componentA-job",
-                    "queue": "root.users.jenkins",
+                    "queue": "root.users.hdfs",
                     "state": "FINISHED",
                     "finalStatus": "SUCCEEDED",
                     "progress": 100.0,
@@ -400,9 +397,9 @@ class ApplicationCreatorTests(unittest.TestCase):
                     "logAggregationStatus": "DISABLED"
                 }, {
                     "id": "application_1455877292606_13010",
-                    "user": "jenkins",
+                    "user": "hdfs",
                     "name": "aname-componentC-job",
-                    "queue": "root.users.jenkins",
+                    "queue": "root.users.hdfs",
                     "state": "FINISHED",
                     "finalStatus": "SUCCEEDED",
                     "progress": 100.0,
@@ -429,9 +426,9 @@ class ApplicationCreatorTests(unittest.TestCase):
                     "logAggregationStatus": "DISABLED"
                 }, {
                     "id": "application_1455877292606_13011",
-                    "user": "jenkins",
+                    "user": "hdfs",
                     "name": "aname-componentC-job",
-                    "queue": "root.users.jenkins",
+                    "queue": "root.users.hdfs",
                     "state": "RUNNING",
                     "finalStatus": "SUCCEEDED",
                     "progress": 100.0,
@@ -458,9 +455,9 @@ class ApplicationCreatorTests(unittest.TestCase):
                     "logAggregationStatus": "DISABLED"
                 }, {
                     "id": "application_1455877292606_13012",
-                    "user": "jenkins",
+                    "user": "hdfs",
                     "name": "aname-componentC-job",
-                    "queue": "root.users.jenkins",
+                    "queue": "root.users.hdfs",
                     "state": "NOT STARTED",
                     "finalStatus": "SUCCEEDED",
                     "progress": 100.0,
