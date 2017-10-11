@@ -36,6 +36,7 @@ import logging
 import json
 import string
 import collections
+import getpass
 import requests
 import hbase_descriptor
 import opentsdb_descriptor
@@ -166,6 +167,7 @@ class Creator(object):
         props['component_name'] = component['component_name']
         props['component_job_name'] = '%s-%s-job' % (props['component_application'], props['component_name'])
         props['component_hdfs_root'] = '/user/%s/%s' % (application_name, component['component_name'])
+        props['application_user'] = self._get_application_user()
         return props
 
     def _fill_properties(self, local_file, props):
@@ -327,3 +329,10 @@ class Creator(object):
                     if result is None or self._get_yarn_start_time(app) > self._get_yarn_start_time(result):
                         result = app
         return result
+
+    def _get_application_user(self):
+        application_user = getpass.getuser()
+        # if running as root, make sure to start the application under a different user.
+        if application_user == 'root':
+            application_user = self._environment['application_default_user']
+        return application_user
