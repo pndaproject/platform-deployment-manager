@@ -106,6 +106,23 @@ class ApplicationCreatorTests(unittest.TestCase):
     }
 
     property_overrides = {
+        'user': 'root',
+        'oozie': {
+            'componentA': {
+                'property3': '3',
+                'property4': 'nine'
+            }
+        },
+        'sparkStreaming': {
+            'componentC': {
+                'property1': '11',
+                'property2': 'twelve'
+            }
+        }
+    }
+
+    property_overrides_no_user = {
+        'user': 'somebody',
         'oozie': {
             'componentA': {
                 'property3': '3',
@@ -178,11 +195,12 @@ class ApplicationCreatorTests(unittest.TestCase):
         dist_mock.return_value = 'ubuntu'
         with patch("__builtin__.open", mock_open(read_data="[]")):
             creator = ApplicationCreator(self.config, self.environment, self.service)
+            print self.property_overrides
             creator.create_application('abcd', self.package_metadata, 'aname', self.property_overrides)
         print post_mock.call_args_list
         # pylint: disable=line-too-long
-        post_mock.assert_any_call('oozie/v1/jobs', data='<?xml version="1.0" encoding="UTF-8" ?><configuration><property><name>environment_application_default_user</name><value>'+self.user+'</value></property><property><name>environment_cluster_private_key</name><value>keyfile.pem</value></property><property><name>environment_hbase_thrift_server</name><value>hbasehost</value></property><property><name>environment_webhdfs_host</name><value>webhdfshost</value></property><property><name>environment_opentsdb</name><value>1.2.3.5:1234</value></property><property><name>environment_yarn_node_managers</name><value>nm1,nm2</value></property><property><name>environment_webhdfs_port</name><value>webhdfsport</value></property><property><name>environment_hbase_rest_server</name><value>hbasehost</value></property><property><name>environment_oozie_uri</name><value>oozie</value></property><property><name>environment_hbase_rest_port</name><value>123</value></property><property><name>environment_cluster_root_user</name><value>root_user</value></property><property><name>environment_hive_port</name><value>124</value></property><property><name>environment_name_node</name><value>namenode</value></property><property><name>environment_hive_server</name><value>hivehost</value></property><property><name>component_property3</name><value>3</value></property><property><name>component_property4</name><value>nine</value></property><property><name>component_application</name><value>aname</value></property><property><name>component_name</name><value>componentA</value></property><property><name>component_job_name</name><value>aname-componentA-job</value></property><property><name>component_hdfs_root</name><value>/user/aname/componentA</value></property><property><name>application_user</name><value>'+self.user+'</value></property><property><name>deployment_start</name><value>2013-01-01T00:02Z</value></property><property><name>deployment_end</name><value>2013-01-08T00:02Z</value></property><property><name>user.name</name><value>'+self.user+'</value></property><property><name>oozie.use.system.libpath</name><value>true</value></property><property><name>oozie.libpath</name><value>/user/deployment/platform</value></property><property><name>oozie.wf.application.path</name><value>namenode/user/aname/componentA</value></property></configuration>', headers={'Content-Type': 'application/xml'})
-        post_mock.assert_any_call('oozie/v1/jobs', data='<?xml version="1.0" encoding="UTF-8" ?><configuration><property><name>environment_application_default_user</name><value>'+self.user+'</value></property><property><name>environment_cluster_private_key</name><value>keyfile.pem</value></property><property><name>environment_hbase_thrift_server</name><value>hbasehost</value></property><property><name>environment_webhdfs_host</name><value>webhdfshost</value></property><property><name>environment_opentsdb</name><value>1.2.3.5:1234</value></property><property><name>environment_yarn_node_managers</name><value>nm1,nm2</value></property><property><name>environment_webhdfs_port</name><value>webhdfsport</value></property><property><name>environment_hbase_rest_server</name><value>hbasehost</value></property><property><name>environment_oozie_uri</name><value>oozie</value></property><property><name>environment_hbase_rest_port</name><value>123</value></property><property><name>environment_cluster_root_user</name><value>root_user</value></property><property><name>environment_hive_port</name><value>124</value></property><property><name>environment_name_node</name><value>namenode</value></property><property><name>environment_hive_server</name><value>hivehost</value></property><property><name>component_application</name><value>aname</value></property><property><name>component_name</name><value>componentB</value></property><property><name>component_job_name</name><value>aname-componentB-job</value></property><property><name>component_hdfs_root</name><value>/user/aname/componentB</value></property><property><name>application_user</name><value>'+self.user+'</value></property><property><name>deployment_start</name><value>2013-01-01T00:02Z</value></property><property><name>deployment_end</name><value>2013-01-08T00:02Z</value></property><property><name>user.name</name><value>'+self.user+'</value></property><property><name>oozie.use.system.libpath</name><value>true</value></property><property><name>oozie.libpath</name><value>/user/deployment/platform</value></property><property><name>oozie.wf.application.path</name><value>namenode/user/aname/componentB</value></property></configuration>', headers={'Content-Type': 'application/xml'})
+        post_mock.assert_any_call('oozie/v1/jobs', data='<?xml version="1.0" encoding="UTF-8" ?><configuration><property><name>environment_application_default_user</name><value>'+self.user+'</value></property><property><name>environment_cluster_private_key</name><value>keyfile.pem</value></property><property><name>environment_hbase_thrift_server</name><value>hbasehost</value></property><property><name>environment_webhdfs_host</name><value>webhdfshost</value></property><property><name>environment_opentsdb</name><value>1.2.3.5:1234</value></property><property><name>environment_yarn_node_managers</name><value>nm1,nm2</value></property><property><name>environment_webhdfs_port</name><value>webhdfsport</value></property><property><name>environment_hbase_rest_server</name><value>hbasehost</value></property><property><name>environment_oozie_uri</name><value>oozie</value></property><property><name>environment_hbase_rest_port</name><value>123</value></property><property><name>environment_cluster_root_user</name><value>root_user</value></property><property><name>environment_hive_port</name><value>124</value></property><property><name>environment_name_node</name><value>namenode</value></property><property><name>environment_hive_server</name><value>hivehost</value></property><property><name>component_property3</name><value>3</value></property><property><name>component_property4</name><value>nine</value></property><property><name>component_user_name</name><value>root</value></property><property><name>component_application</name><value>aname</value></property><property><name>component_name</name><value>componentA</value></property><property><name>component_job_name</name><value>aname-componentA-job</value></property><property><name>component_hdfs_root</name><value>/user/aname/componentA</value></property><property><name>application_user</name><value>'+self.user+'</value></property><property><name>deployment_start</name><value>2013-01-01T00:02Z</value></property><property><name>deployment_end</name><value>2013-01-08T00:02Z</value></property><property><name>user.name</name><value>'+self.user+'</value></property><property><name>oozie.use.system.libpath</name><value>true</value></property><property><name>oozie.libpath</name><value>/user/deployment/platform</value></property><property><name>oozie.wf.application.path</name><value>namenode/user/aname/componentA</value></property></configuration>', headers={'Content-Type': 'application/xml'})
+        post_mock.assert_any_call('oozie/v1/jobs', data='<?xml version="1.0" encoding="UTF-8" ?><configuration><property><name>environment_application_default_user</name><value>'+self.user+'</value></property><property><name>environment_cluster_private_key</name><value>keyfile.pem</value></property><property><name>environment_hbase_thrift_server</name><value>hbasehost</value></property><property><name>environment_webhdfs_host</name><value>webhdfshost</value></property><property><name>environment_opentsdb</name><value>1.2.3.5:1234</value></property><property><name>environment_yarn_node_managers</name><value>nm1,nm2</value></property><property><name>environment_webhdfs_port</name><value>webhdfsport</value></property><property><name>environment_hbase_rest_server</name><value>hbasehost</value></property><property><name>environment_oozie_uri</name><value>oozie</value></property><property><name>environment_hbase_rest_port</name><value>123</value></property><property><name>environment_cluster_root_user</name><value>root_user</value></property><property><name>environment_hive_port</name><value>124</value></property><property><name>environment_name_node</name><value>namenode</value></property><property><name>environment_hive_server</name><value>hivehost</value></property><property><name>component_user_name</name><value>root</value></property><property><name>component_application</name><value>aname</value></property><property><name>component_name</name><value>componentB</value></property><property><name>component_job_name</name><value>aname-componentB-job</value></property><property><name>component_hdfs_root</name><value>/user/aname/componentB</value></property><property><name>application_user</name><value>'+self.user+'</value></property><property><name>deployment_start</name><value>2013-01-01T00:02Z</value></property><property><name>deployment_end</name><value>2013-01-08T00:02Z</value></property><property><name>user.name</name><value>'+self.user+'</value></property><property><name>oozie.use.system.libpath</name><value>true</value></property><property><name>oozie.libpath</name><value>/user/deployment/platform</value></property><property><name>oozie.wf.application.path</name><value>namenode/user/aname/componentB</value></property></configuration>', headers={'Content-Type': 'application/xml'})
 
         put_mock.assert_any_call('oozie/v1/job/someid?action=suspend&user.name='+self.user)
 
@@ -222,6 +240,39 @@ class ApplicationCreatorTests(unittest.TestCase):
         with patch("__builtin__.open", mock_open(read_data="[]")):
             creator = ApplicationCreator(self.config, self.environment, self.service)
             self.assertRaises(FailedCreation, creator.create_application, 'abcd', self.package_metadata_2, 'aname', self.property_overrides)
+
+    @patch('starbase.Connection')
+    @patch('pyhs2.connect')
+    @patch('datetime.datetime')
+    @patch('os.system')
+    @patch('deployer_utils.exec_ssh')
+    @patch('requests.put')
+    @patch('requests.post')
+    @patch('deployer_utils.HDFS')
+    @patch('spur.ssh')
+    @patch('application_creator.shutil')
+    @patch('application_creator.os')
+    @patch('application_creator.tarfile')
+    # pylint: disable=unused-argument
+    def test_user_name_fail(self, tar_mock, os_mock, shutil_mock, spur_ssh,
+                            hdfs_client_mock, post_mock, put_mock, exec_ssh_mock,
+                            os_sys_mock, dt_mock, hive_mock, hbase_mock):
+
+        class Resp(object):
+            status_code = 201
+
+            def json(self):
+                return {'id': 'someid'}
+
+        post_mock.return_value = Resp()
+
+        with patch("__builtin__.open", mock_open(read_data="[]")):
+            creator = ApplicationCreator(self.config, self.environment, self.service)
+            try:
+                creator.create_application('abcd', self.package_metadata, 'appname', self.property_overrides_no_user)
+                self.assertFail('Expected FailedCreation exception but was not thrown')
+            except FailedCreation as ex:
+                self.assertEqual(ex.msg, 'User somebody does not exist. Verify that this user account exists on the machine running the deployment manager.')
 
     @patch('starbase.Connection')
     @patch('pyhs2.connect')

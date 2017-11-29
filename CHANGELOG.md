@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ### Added:
 - PNDA-3330: Change to use a default application user instead of the hdfs user.
 - PNDA-2445: Support for Hortonworks HDP
+- PNDA-439: Application create API requires a user to run the application as.
 
 ## [0.4.0] 2017-05-23
 ### Added

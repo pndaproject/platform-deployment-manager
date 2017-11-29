@@ -61,8 +61,8 @@ class JupyterCreator(Creator):
     def stop_component(self, application_name, create_data):
         logging.debug("stop_component (nothing to do for jupyter): %s %s", application_name, json.dumps(create_data))
 
-    def create_component(self, staged_component_path, application_name, component, properties):
-        logging.debug("create_component: %s %s %s", application_name, json.dumps(component), properties)
+    def create_component(self, staged_component_path, application_name, user_name, component, properties):
+        logging.debug("create_component: %s %s %s %s", application_name, user_name, json.dumps(component), properties)
 
         key_file = self._environment['cluster_private_key']
         root_user = self._environment['cluster_root_user']

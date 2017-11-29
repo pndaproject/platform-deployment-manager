@@ -91,11 +91,12 @@ class Creator(object):
         '''
         pass
 
-    def create_component(self, staged_component_path, application_name, component, properties):
+    def create_component(self, staged_component_path, application_name, user_name, component, properties):
         '''
         Creates component of the package of given component type
 
         application_name - name of the application
+        user_name - user to run the application as
         components - a list of component maps following above example structure
         properties - a full map of properties that can be used as needed
 
@@ -145,7 +146,7 @@ class Creator(object):
         '''
         pass
 
-    def _instantiate_properties(self, application_name, component, property_overrides):
+    def _instantiate_properties(self, application_name, user_name, component, property_overrides):
         logging.debug(
             "_instantiate_properties %s %s",
             component,
@@ -163,6 +164,7 @@ class Creator(object):
         for prop in property_overrides:
             props['component_' + prop] = property_overrides[prop]
 
+        props['component_user_name'] = user_name
         props['component_application'] = application_name
         props['component_name'] = component['component_name']
         props['component_job_name'] = '%s-%s-job' % (props['component_application'], props['component_name'])
@@ -233,17 +235,17 @@ class Creator(object):
 
         return result
 
-    def create_components(self, stage_path, application_name, components,
+    def create_components(self, stage_path, application_name, user_name, components,
                           components_overrides):
         results = []
         for component_name, component in components.iteritems():
             staged_component_path = '%s/%s' % (stage_path, component['component_path'])
             overrides = components_overrides.get(component_name) if components_overrides is not None else {}
             overrides = {} if overrides is None else overrides
-            merged_props = self._instantiate_properties(application_name, component, overrides)
+            merged_props = self._instantiate_properties(application_name, user_name, component, overrides)
             descriptor_result = self._create_optional_descriptors(staged_component_path, component, merged_props)
             self._auto_fill_app_properties(staged_component_path, merged_props)
-            result = self.create_component(staged_component_path, application_name, component, merged_props)
+            result = self.create_component(staged_component_path, application_name, user_name, component, merged_props)
             result['component_name'] = component_name
             result['component_job_name'] = merged_props['component_job_name']
             result['descriptors'] = descriptor_result

@@ -20,6 +20,7 @@ License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF 
 either express or implied.
 """
 
+import pwd
 import tarfile
 import os
 import json
@@ -52,6 +53,13 @@ class ApplicationCreator(object):
         if not re.match('^[a-zA-Z0-9_-]+$', application_name):
             raise FailedCreation('Application name %s may only contain a-z A-Z 0-9 - _' % application_name)
 
+        user_name = property_overrides['user']
+        try:
+            pwd.getpwnam(user_name)
+        except KeyError:
+            raise FailedCreation('User %s does not exist. Verify that this user account exists on the machine running the deployment manager.' % user_name)
+
+        print 'done'
         stage_path = self._stage_package(package_data_path)
 
         # create each class of components in the package, aggregating any
@@ -62,6 +70,7 @@ class ApplicationCreator(object):
                 creator = self._load_creator(component_type)
                 result = creator.create_components(stage_path,
                                                    application_name,
+                                                   user_name,
                                                    components,
                                                    property_overrides.get(component_type))
                 create_metadata[component_type] = result

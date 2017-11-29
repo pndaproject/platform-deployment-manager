@@ -63,8 +63,8 @@ class SparkStreamingCreator(Creator):
         target_host = 'localhost'
         deployer_utils.exec_ssh(target_host, root_user, key_file, cmds)
 
-    def create_component(self, staged_component_path, application_name, component, properties):
-        logging.debug("create_component: %s %s %s", application_name, json.dumps(component), properties)
+    def create_component(self, staged_component_path, application_name, user_name, component, properties):
+        logging.debug("create_component: %s %s %s %s", application_name, user_name, json.dumps(component), properties)
         distro = platform.dist()
         usesSystemd = distro[0] in ('redhat', 'centos')
         remote_component_tmp_path = '%s/%s/%s' % (
