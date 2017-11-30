@@ -7,6 +7,9 @@ All notable changes to this project will be documented in this file.
 - PNDA-2445: Support for Hortonworks HDP
 - PNDA-439: Application create API requires a user to run the application as.
 
+### Changed
+- PNDA-3486: Place files in HDFS for components under `/user/deployment-manager/applications/<user>/<application>/<component>` to avoid potential clashes using the existing path of `/user/<application>`.
+
 ## [0.4.0] 2017-05-23
 ### Added
 - PNDA-2729: Added support for spark streaming jobs written in python (pyspark). Use `main_py` instead of `main_jar` in properties.json and specify additional files using `py_files`.

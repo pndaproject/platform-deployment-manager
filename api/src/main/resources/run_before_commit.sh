@@ -1,6 +1,6 @@
 echo Some useful stuff to run before comitting to git
 echo
-echo runnig unit tests:
+echo running unit tests:
 nosetests
 echo
 echo
