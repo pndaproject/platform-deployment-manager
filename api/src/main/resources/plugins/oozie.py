@@ -66,10 +66,11 @@ class OozieCreator(Creator):
         logging.debug("stop_component: %s %s", application_name, json.dumps(create_data))
         self._stop_oozie(create_data['job_handle'], create_data['application_user'])
 
-    def create_component(self, staged_component_path, application_name, component, properties):
+    def create_component(self, staged_component_path, application_name, user_name, component, properties):
         logging.debug(
-            "create_component: %s %s %s",
+            "create_component: %s %s %s %s",
             application_name,
+            user_name,
             json.dumps(component),
             properties)
 

@@ -41,7 +41,7 @@ The Application Creator handles the creation and control of applications on beha
 
 ## Creator ##
 
-Each component type is associated with a subclass of Creator. Each Creator implements the specific steps necessary to perform the following functions: 
+Each component type is associated with a subclass of Creator. Each Creator implements the specific steps necessary to perform the following functions:
 
 ### Validation ###
 
@@ -117,7 +117,7 @@ Example response:
 ## Packages API
 
 ### List packages currently deployed to the cluster
-````    
+````
 GET /packages
 
 Response Codes:
@@ -303,6 +303,8 @@ Example response:
 {
 	"status": "CREATED",
 	"overrides": {
+        "user": "somebody",
+		"package_name": "spark-batch-example-app-1.0.23",
 		"oozie": {
 			"example": {
 				"executors_num": "5"
@@ -333,6 +335,7 @@ Example response:
 ````
 PUT /applications/<application>
 {
+	"user": "<username>",
 	"package": "<package>",
 	"<componentType>": {
 		"<componentName>": {
@@ -350,6 +353,7 @@ Response Codes:
 
 Example body:
 {
+	"user": "somebody",
 	"package": "<package>",
 	"oozie": {
 		"example": {
@@ -358,7 +362,7 @@ Example body:
 	}
 }
 
-Package is mandatory, property settings are optional
+Package and user are mandatory, property settings are optional
 ````
 
 ### Destroy _application_
@@ -389,6 +393,7 @@ The following variables are made available for use in the configuration files fo
 
 ## Component Variables ##
 ````
+component_user_name     The user ID that this component will run as
 component_application   unique application ID
 component_name          name of component folder in package
 component_job_name      application_id-component_name-job
@@ -440,4 +445,4 @@ oozie.coord.application.path   hdfs://cluster-cdh-mgr1:8020/user/application_id/
 oozie.libpath                  /user/deployment/platform
 oozie.use.system.libpath       true
 user.name                      hdfs
-```` 
+````

@@ -143,9 +143,6 @@ class DeploymentManagerTest(unittest.TestCase):
     @patch('os.remove')
     # pylint: disable=unused-argument
     def test_create_application_errors(self, os_mock_rem):
-        """
-        Tests asynchronous error reporting in the start-app process.
-        """
 
         self.mock_package_registar.package_exists = Mock(return_value=True)
         self.mock_package_registar.get_package_deploy_status = Mock(
@@ -174,7 +171,7 @@ class DeploymentManagerTest(unittest.TestCase):
                                                                    deployment_manager)
 
         # launch the asynch test
-        deployment_manager.create_application(self.test_package_name, self.test_app_name, None)
+        deployment_manager.create_application(self.test_package_name, self.test_app_name, {'user': 'root'})
         # wait for test to finsish
         on_complete.wait(5)
         self.assertIsNotNone(test_result[0], "async task completed")
@@ -198,9 +195,6 @@ class DeploymentManagerTest(unittest.TestCase):
     def test_create_oozie_error(self, os_mock_rem, tar_mock, os_mock, shutil_mock, spur_ssh,
                                 hdfs_client_mock, post_mock, put_mock, exec_ssh_mock,
                                 os_sys_mock, dt_mock, hive_mock, hbase_mock):
-        """
-        Tests asynchronous error reporting in the start-app process.
-        """
 
         self.mock_package_registar.package_exists = Mock(return_value=True)
         self.mock_package_registar.get_package_deploy_status = Mock(
@@ -259,7 +253,7 @@ class DeploymentManagerTest(unittest.TestCase):
         }
 
         with patch("__builtin__.open", mock_open(read_data="[]")):
-            deployment_manager.create_application(self.test_package_name, self.test_app_name, {})
+            deployment_manager.create_application(self.test_package_name, self.test_app_name, {'user': 'root'})
             # wait for test to finsish
             on_complete.wait(5)
             self.assertIsNotNone(test_result[0], "async task completed")
@@ -318,9 +312,6 @@ class DeploymentManagerTest(unittest.TestCase):
         return verify_app_state_changes
 
     def test_start_application_errors(self):
-        """
-        Tests asynchronous error reporting in the start-app process.
-        """
 
         self.mock_package_registar.package_exists = Mock(return_value=True)
         self.mock_package_registar.get_package_deploy_status = Mock(

@@ -100,7 +100,6 @@ def fill_hadoop_env_hdp(env):
 
     logging.debug('getting service list for %s', cluster_name)
     env['cm_status_links'] = {}
-    nameservice = None
 
     env['name_node'] = get_hdfs_hdp(ambari, cluster_name)
 
@@ -174,9 +173,9 @@ def fill_hadoop_env_cdh(env):
         env['cm_status_links']['%s' % service.name] = service.serviceUrl
         if service.type == "HDFS":
             nameservice = get_nameservice(env['hadoop_manager_host'], cluster_name,
-                                              service.name,
-                                              user_name=env['hadoop_manager_username'],
-                                              password=env['hadoop_manager_password'])
+                                          service.name,
+                                          user_name=env['hadoop_manager_username'],
+                                          password=env['hadoop_manager_password'])
             if nameservice:
                 env['name_node'] = 'hdfs://%s' % nameservice
             for role in service.get_all_roles():
