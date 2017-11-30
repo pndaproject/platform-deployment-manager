@@ -168,7 +168,7 @@ class Creator(object):
         props['component_application'] = application_name
         props['component_name'] = component['component_name']
         props['component_job_name'] = '%s-%s-job' % (props['component_application'], props['component_name'])
-        props['component_hdfs_root'] = '/user/%s/%s' % (application_name, component['component_name'])
+        props['component_hdfs_root'] = '/user/deployment-manager/applications/%s/%s/%s' % (user_name, application_name, component['component_name'])
         props['application_user'] = self._get_application_user()
         return props
 
