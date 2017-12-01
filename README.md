@@ -391,9 +391,13 @@ Example response:
 
 The following variables are made available for use in the configuration files for every component and injected as previously described.
 
+## Application Variables ##
+````
+application_user        The user ID that this application's components will run as
+````
+
 ## Component Variables ##
 ````
-component_user_name     The user ID that this component will run as
 component_application   unique application ID
 component_name          name of component folder in package
 component_job_name      application_id-component_name-job

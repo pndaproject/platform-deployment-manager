@@ -34,8 +34,6 @@ from exceptiondef import FailedCreation
 
 class OozieCreator(Creator):
 
-    OOZIE_USER_NAME = 'hdfs'
-
     def validate_component(self, component):
         errors = []
         file_list = component['component_detail']
