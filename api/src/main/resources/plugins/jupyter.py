@@ -67,11 +67,14 @@ class JupyterCreator(Creator):
         key_file = self._environment['cluster_private_key']
         root_user = self._environment['cluster_root_user']
         target_host = self._environment['jupyter_host']
+        application_user = properties['application_user']
         delete_commands = []
 
         mkdircommands = []
-        remote_component_tmp_path = '%s/%s/%s' % ('/tmp/%s' % self._namespace, application_name, component['component_name'])
+        remote_component_tmp_path = '%s/%s/%s/%s' % ('/tmp/%s' % self._namespace, application_user, application_name, component['component_name'])
+        remote_notebook_path = '/home/%s/%s' % (application_user, self._environment['jupyter_notebook_directory'])
         mkdircommands.append('mkdir -p %s' % remote_component_tmp_path)
+        mkdircommands.append('sudo -u %s mkdir -p %s' % (application_user, remote_notebook_path))
         deployer_utils.exec_ssh(target_host, root_user, key_file, mkdircommands)
 
         file_list = component['component_detail']
@@ -82,7 +85,7 @@ class JupyterCreator(Creator):
                 os.system("scp -i %s -o StrictHostKeyChecking=no %s/%s %s@%s:%s" %
                           (key_file, staged_component_path, file_name, root_user, target_host, remote_component_tmp_path))
 
-                remote_component_install_path = '%s/%s_%s' % (self._environment['jupyter_notebook_directory'], application_name, file_name)
+                remote_component_install_path = '%s/%s_%s' % (remote_notebook_path, application_name, file_name)
                 deployer_utils.exec_ssh(
                     target_host, root_user, key_file,
                     ['sudo mv %s %s' % (remote_component_tmp_path + '/*.ipynb', remote_component_install_path)])

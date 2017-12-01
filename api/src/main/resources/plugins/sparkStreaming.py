@@ -27,7 +27,6 @@ import os
 import logging
 import platform
 from shutil import copy
-
 import deployer_utils
 from plugins.base_creator import Creator
 
@@ -67,7 +66,7 @@ class SparkStreamingCreator(Creator):
     def create_component(self, staged_component_path, application_name, component, properties):
         logging.debug("create_component: %s %s %s", application_name, json.dumps(component), properties)
         distro = platform.dist()
-        redhat = distro[0] == 'redhat'
+        usesSystemd = distro[0] in ('redhat', 'centos')
         remote_component_tmp_path = '%s/%s/%s' % (
             '/tmp/%s' % self._namespace, application_name, component['component_name'])
         remote_component_install_path = '%s/%s/%s' % (
@@ -102,8 +101,7 @@ class SparkStreamingCreator(Creator):
 
             this_dir = os.path.dirname(os.path.realpath(__file__))
             copy(os.path.join(this_dir, 'yarn-kill.py'), staged_component_path)
-            distro = platform.dist()
-            if redhat:
+            if usesSystemd:
                 service_script = 'systemd.service.tpl' if java_app else 'systemd.service.py.tpl'
                 service_script_install_path = '/usr/lib/systemd/system/%s.service' % service_name
             else:
@@ -155,7 +153,7 @@ class SparkStreamingCreator(Creator):
         logging.debug("uninstall commands: %s", undo_commands)
 
         start_commands = []
-        if redhat:
+        if usesSystemd:
             start_commands.append('sudo systemctl daemon-reload\n')
         start_commands.append('sudo service %s start\n' % service_name)
         logging.debug("start commands: %s", start_commands)

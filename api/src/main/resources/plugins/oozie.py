@@ -34,6 +34,8 @@ from exceptiondef import FailedCreation
 
 class OozieCreator(Creator):
 
+    OOZIE_USER_NAME = 'hdfs'
+
     def validate_component(self, component):
         errors = []
         file_list = component['component_detail']
@@ -50,7 +52,7 @@ class OozieCreator(Creator):
             application_name,
             json.dumps(create_data))
         # terminate oozie jobs
-        self._kill_oozie(create_data['job_handle'])
+        self._kill_oozie(create_data['job_handle'], create_data['application_user'])
 
         # delete component from hdfs
         remote_path = create_data['component_hdfs_root'][1:]
@@ -58,11 +60,11 @@ class OozieCreator(Creator):
 
     def start_component(self, application_name, create_data):
         logging.debug("start_component: %s %s", application_name, json.dumps(create_data))
-        self._start_oozie(create_data['job_handle'])
+        self._start_oozie(create_data['job_handle'], create_data['application_user'])
 
     def stop_component(self, application_name, create_data):
         logging.debug("stop_component: %s %s", application_name, json.dumps(create_data))
-        self._stop_oozie(create_data['job_handle'])
+        self._stop_oozie(create_data['job_handle'], create_data['application_user'])
 
     def create_component(self, staged_component_path, application_name, component, properties):
         logging.debug(
@@ -87,7 +89,7 @@ class OozieCreator(Creator):
         properties['deployment_end'] = end.strftime("%Y-%m-%dT%H:%MZ")
 
         # insert required oozie properties
-        properties['user.name'] = 'hdfs'  # or serviceId?
+        properties['user.name'] = properties['application_user']
         # Oozie ShareLib - supports actions
         properties['oozie.use.system.libpath'] = 'true'
         # platform shared libs e.g. hbase
@@ -102,12 +104,14 @@ class OozieCreator(Creator):
         properties[def_path] = '%s/%s' % (self._environment['name_node'], remote_path)
 
         # deploy everything to various hadoop services
-        undeploy = self._deploy_to_hadoop(properties, staged_component_path, remote_path)
+        undeploy = self._deploy_to_hadoop(properties, staged_component_path, remote_path, properties['application_user'])
 
         # return something that can be used to undeploy later
-        return {'job_handle': undeploy['id'], 'component_hdfs_root': properties['component_hdfs_root']}
+        return {'job_handle': undeploy['id'],
+                'component_hdfs_root': properties['component_hdfs_root'],
+                'application_user': properties['application_user']}
 
-    def _deploy_to_hadoop(self, properties, staged_component_path, remote_path, exclude=None):
+    def _deploy_to_hadoop(self, properties, staged_component_path, remote_path, application_user, exclude=None):
         if exclude is None:
             exclude = []
         exclude.extend(['hdfs.json',
@@ -125,7 +129,7 @@ class OozieCreator(Creator):
 
         # submit to oozie
         result = self._submit_oozie(properties)
-        self._stop_oozie(result['id'])
+        self._stop_oozie(result['id'], application_user)
 
         return result
 
@@ -149,20 +153,20 @@ class OozieCreator(Creator):
 
         return result
 
-    def _kill_oozie(self, job_id):
+    def _kill_oozie(self, job_id, oozie_user):
         logging.debug("_kill_oozie: %s", job_id)
-        oozie_url = '%s/v1/job/%s?action=kill' % (self._environment['oozie_uri'], job_id)
+        oozie_url = '%s/v1/job/%s?action=kill&user.name=%s' % (self._environment['oozie_uri'], job_id, oozie_user)
         requests.put(oozie_url)
 
-    def _start_oozie(self, job_id):
+    def _start_oozie(self, job_id, oozie_user):
         logging.debug("_start_oozie: %s", job_id)
-        oozie_url = '%s/v1/job/%s?action=resume' % (self._environment['oozie_uri'], job_id)
+        oozie_url = '%s/v1/job/%s?action=resume&user.name=%s' % (self._environment['oozie_uri'], job_id, oozie_user)
         requests.put(oozie_url)
-        oozie_url = '%s/v1/job/%s?action=start' % (self._environment['oozie_uri'], job_id)
+        oozie_url = '%s/v1/job/%s?action=start&user.name=%s' % (self._environment['oozie_uri'], job_id, oozie_user)
         requests.put(oozie_url)
 
-    def _stop_oozie(self, job_id):
+    def _stop_oozie(self, job_id, oozie_user):
         logging.debug("_stop_oozie: %s", job_id)
-        oozie_url = '%s/v1/job/%s?action=suspend' % (self._environment['oozie_uri'], job_id)
+        oozie_url = '%s/v1/job/%s?action=suspend&user.name=%s' % (self._environment['oozie_uri'], job_id, oozie_user)
         print oozie_url
         requests.put(oozie_url)
