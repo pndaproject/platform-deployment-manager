@@ -404,6 +404,7 @@ hdfspath_path_name      generated from entries in hdfs.json
 ## Environment Variables ##
 These can be obtained with the [environment endpoints API](#environment-endpoints-api)
 ````
+environment_app_packages_hdfs_path    /user/deployment/app_packages
 environment_hadoop_manager_host       192.168.1.2
 environment_hadoop_manager_password   admin
 environment_hadoop_manager_username   admin
