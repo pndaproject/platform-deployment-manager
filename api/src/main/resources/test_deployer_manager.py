@@ -74,8 +74,7 @@ class DeploymentManagerTest(unittest.TestCase):
             'hive_server': 'hivehost',
             'hive_port': '124',
             'opentsdb': '1.2.3.5:1234',
-            'namespace': 'mockspace',
-            'application_default_user': user
+            'namespace': 'mockspace'
         }
         self.mock_config = {"deployer_thread_limit": 1, 'stage_root': 'stage', 'plugins_path': 'plugins'}
         # mock app registrar:
