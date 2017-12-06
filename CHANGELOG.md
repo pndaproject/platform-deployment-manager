@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+## [0.5.0] 2017-11-24
 ### Added:
 - PNDA-3330: Change to use a default application user instead of the hdfs user.
 - PNDA-2445: Support for Hortonworks HDP
