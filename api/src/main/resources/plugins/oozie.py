@@ -92,7 +92,7 @@ class OozieCreator(Creator):
         # Oozie ShareLib - supports actions
         properties['oozie.use.system.libpath'] = 'true'
         # platform shared libs e.g. hbase
-        properties['oozie.libpath'] = '/user/deployment/platform'
+        properties['oozie.libpath'] = '/pnda/deployment/platform'
 
         # insert reference to coordinator xor workflow
         if 'coordinator.xml' in component['component_detail']:
@@ -119,7 +119,7 @@ class OozieCreator(Creator):
                         'application.properties'])
 
         # stage the component files to hdfs
-        self._hdfs_client.recursive_copy(staged_component_path, remote_path, exclude=exclude)
+        self._hdfs_client.recursive_copy(staged_component_path, remote_path, exclude=exclude, permission=755)
 
         # stage the instantiated job properties back to HDFS - no functional purpose,
         # just helps developers understand what has happened

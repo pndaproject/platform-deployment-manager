@@ -21,7 +21,6 @@ either express or implied.
 """
 
 import unittest
-import getpass
 import traceback
 from multiprocessing import Event
 from mock import Mock, patch, mock_open
@@ -46,7 +45,6 @@ class DeploymentManagerTest(unittest.TestCase):
         """
         Create some global mocks
         """
-        user = getpass.getuser()
         mock_repository = Mock()
         mock_package_registar = Mock()
         mock_package_registar.get_package_metadata = Mock(

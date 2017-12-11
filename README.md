@@ -408,7 +408,7 @@ hdfspath_path_name      generated from entries in hdfs.json
 ## Environment Variables ##
 These can be obtained with the [environment endpoints API](#environment-endpoints-api)
 ````
-environment_app_packages_hdfs_path    /user/deployment/app_packages
+environment_app_packages_hdfs_path    /pnda/deployment/app_packages
 environment_hadoop_manager_host       192.168.1.2
 environment_hadoop_manager_password   admin
 environment_hadoop_manager_username   admin
@@ -447,7 +447,7 @@ component_end                  2016-03-31T17:07Z
 component_start                2016-03-24T17:07Z
 mapreduce.job.user.name        hdfs
 oozie.coord.application.path   hdfs://cluster-cdh-mgr1:8020/user/application_id/component_name/coordinator.xml
-oozie.libpath                  /user/deployment/platform
+oozie.libpath                  /pnda/deployment/platform
 oozie.use.system.libpath       true
 user.name                      hdfs
 ````

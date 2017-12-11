@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- PNDA-3555: Place files in HDFS for packages and applications under `/pnda/system/deployment-manager/<packages|applications>`.
+
 ## [0.5.0] 2017-11-24
 ### Added:
 - PNDA-3330: Change to use a default application user instead of the hdfs user.
