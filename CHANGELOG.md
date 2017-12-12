@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- PNDA-3354: Fix error causing exception to appear in log when trying to deploy packages that do not exist
+
 ## [0.5.0] 2017-11-24
 ### Added:
 - PNDA-3330: Change to use a default application user instead of the hdfs user.
