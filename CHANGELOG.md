@@ -2,9 +2,11 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
-
 ### Changed
 - PNDA-3555: Place files in HDFS for packages and applications under `/pnda/system/deployment-manager/<packages|applications>`.
+
+### Fixed
+- PNDA-3354: Fix error causing exception to appear in log when trying to deploy packages that do not exist
 
 ## [0.5.0] 2017-11-24
 ### Added:

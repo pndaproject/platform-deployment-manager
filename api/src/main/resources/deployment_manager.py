@@ -151,6 +151,7 @@ class DeploymentManager(object):
         # this function will be executed in the background:
         def _do_deploy():
             # if this value is not changed, then it is assumed that the operation never completed
+            package_data_path = None
             try:
                 package_file = package + '.tar.gz'
                 logging.info("deploy: %s", package)
@@ -172,7 +173,8 @@ class DeploymentManager(object):
             finally:
                 # report final state of operation to database:
                 self._package_registrar.set_package_deploy_status(package, deploy_status)
-                os.remove(package_data_path)
+                if package_data_path is not None:
+                    os.remove(package_data_path)
 
         # schedule work to be done in the background:
         self._run_asynch_package_task(package_name=package,
@@ -349,6 +351,7 @@ class DeploymentManager(object):
 
     def create_application(self, package, application, overrides):
         logging.info('create_application')
+        package_data_path = None
 
         with self._lock:
             self._assert_application_status(application, ApplicationState.NOTCREATED)
@@ -375,7 +378,8 @@ class DeploymentManager(object):
                 # clear inner locks:
                 self._clear_package_progress(application)
                 self._state_change_event_application(application)
-                os.remove(package_data_path)
+                if package_data_path is not None:
+                    os.remove(package_data_path)
 
         self.dispatcher.run_as_asynch(task=do_work)
 
