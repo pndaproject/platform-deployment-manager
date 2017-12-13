@@ -36,7 +36,6 @@ import logging
 import json
 import string
 import collections
-import getpass
 import requests
 import hbase_descriptor
 import opentsdb_descriptor
@@ -167,7 +166,7 @@ class Creator(object):
         props['component_application'] = application_name
         props['component_name'] = component['component_name']
         props['component_job_name'] = '%s-%s-job' % (props['component_application'], props['component_name'])
-        props['component_hdfs_root'] = '/user/deployment-manager/applications/%s/%s/%s' % (user_name, application_name, component['component_name'])
+        props['component_hdfs_root'] = '/pnda/system/deployment-manager/applications/%s/%s/%s' % (user_name, application_name, component['component_name'])
         props['application_user'] = user_name
         return props
 

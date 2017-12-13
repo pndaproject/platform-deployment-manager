@@ -279,14 +279,14 @@ class HDFS(object):
             host=host, port=port, user_name=user, timeout=None)
         logging.debug('webhdfs = %s@%s:%s', user, host, port)
 
-    def recursive_copy(self, local_path, remote_path, exclude=None):
+    def recursive_copy(self, local_path, remote_path, exclude=None, permission=755):
 
         if exclude is None:
             exclude = []
 
         c_path = canonicalize(remote_path)
         logging.debug('making %s', c_path)
-        self._hdfs.make_dir(c_path)
+        self._hdfs.make_dir(c_path, permission=permission)
 
         fs_g = os.walk(local_path)
         for dpath, dnames, fnames in fs_g:
@@ -297,7 +297,7 @@ class HDFS(object):
                         '%s/%s/%s' %
                         (remote_path, relative_path, dname))
                     logging.debug('making %s', c_path)
-                    self._hdfs.make_dir(c_path)
+                    self._hdfs.make_dir(c_path, permission=permission)
 
             for fname in fnames:
                 if fname not in exclude:
@@ -309,16 +309,16 @@ class HDFS(object):
                         '%s/%s/%s' %
                         (remote_path, relative_path, fname))
                     logging.debug('creating %s', c_path)
-                    self._hdfs.create_file(c_path, data, overwrite=True)
+                    self._hdfs.create_file(c_path, data, overwrite=True, permission=permission)
                     data.close()
 
-    def make_dir(self, path):
+    def make_dir(self, path, permission=755):
 
         logging.debug('make_dir: %s', path)
 
-        self._hdfs.make_dir(canonicalize(path))
+        self._hdfs.make_dir(canonicalize(path), permission=permission)
 
-    def create_file(self, data, remote_file_path):
+    def create_file(self, data, remote_file_path, permission=755):
 
         logging.debug('create_file: %s', remote_file_path)
 
@@ -327,7 +327,8 @@ class HDFS(object):
         self._hdfs.create_file(
             canonicalize(remote_file_path),
             sio,
-            overwrite=True)
+            overwrite=True,
+            permission=permission)
 
     def append_file(self, data, remote_file_path):
 
