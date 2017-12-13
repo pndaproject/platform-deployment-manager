@@ -47,7 +47,7 @@ class GenerateRecord(unittest.TestCase):
                         "component_name": "componentC"}}},
             "package_name": "test_package-1.0.2"}
 
-        package_data_path = '/user/pnda/application_packages/test_package-1.0.2'
+        package_data_path = '/pnda/system/deployment-manager/packages/test_package-1.0.2'
 
         expected_record = metadata["package_name"], {
             'cf:name': 'test_package',
@@ -75,7 +75,7 @@ class GenerateRecord(unittest.TestCase):
 
         hbase_mock.return_value.table.return_value.put.assert_called_once_with(
             'a-1',
-            {'cf:metadata': '{"package_name": "a-1"}', 'cf:package_data': '/user/pnda/application_packages/a-1', 'cf:name': 'a', 'cf:version': '1'})
+            {'cf:metadata': '{"package_name": "a-1"}', 'cf:package_data': '/pnda/system/deployment-manager/packages/a-1', 'cf:name': 'a', 'cf:version': '1'})
 
     @patch('happybase.Connection')
     def test_set_package_deploy_status(self, hbase_mock):

@@ -28,7 +28,7 @@ from Hbase_thrift import AlreadyExists
 
 from package_parser import PackageParser
 from deployer_utils import HDFS
-
+from requests.models import InvalidURL
 
 class HbasePackageRegistrar(object):
     COLUMN_DEPLOY_STATUS = "cf:deploy_status"
@@ -41,8 +41,20 @@ class HbasePackageRegistrar(object):
         self._hdfs_client = HDFS(hdfs_host, hdfs_port, hdfs_user)
         self._parser = PackageParser()
         self._table_name = 'platform_packages'
-        self._package_hdfs_dir_path = "/user/pnda/application_packages"
+        self._dm_root_dir_path = "/pnda/system/deployment-manager"
+        self._package_hdfs_dir_path = "%s/packages" % self._dm_root_dir_path
         self._package_local_dir_path = package_local_dir_path
+
+        try:
+            self._hdfs_client.make_dir(self._dm_root_dir_path, permission=755)
+            self._hdfs_client.make_dir(self._package_hdfs_dir_path, permission=600)
+            logging.debug("packages HDFS folder created")
+        except AlreadyExists:
+            logging.debug("not creating packages HDFS folder as it already exists")
+        except InvalidURL:
+            logging.debug("not creating packages HDFS folder as it is not required")
+
+
         if self._hbase_host is not None:
             connection = happybase.Connection(self._hbase_host)
             try:
@@ -162,7 +174,7 @@ class HbasePackageRegistrar(object):
             data_chunk = source_file.read(chunk_size)
             while data_chunk:
                 if first:
-                    self._hdfs_client.create_file(data_chunk, dest_hdfs_path)
+                    self._hdfs_client.create_file(data_chunk, dest_hdfs_path, permission=600)
                     first = False
                 else:
                     self._hdfs_client.append_file(data_chunk, dest_hdfs_path)
