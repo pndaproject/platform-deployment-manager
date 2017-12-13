@@ -28,7 +28,6 @@ from Hbase_thrift import AlreadyExists
 
 from package_parser import PackageParser
 from deployer_utils import HDFS
-from requests.models import InvalidURL
 
 class HbasePackageRegistrar(object):
     COLUMN_DEPLOY_STATUS = "cf:deploy_status"
@@ -46,14 +45,14 @@ class HbasePackageRegistrar(object):
         self._package_local_dir_path = package_local_dir_path
 
         try:
-            self._hdfs_client.make_dir(self._dm_root_dir_path, permission=755)
-            self._hdfs_client.make_dir(self._package_hdfs_dir_path, permission=600)
-            logging.debug("packages HDFS folder created")
+            if hdfs_host is not None:
+                self._hdfs_client.make_dir(self._dm_root_dir_path, permission=755)
+                self._hdfs_client.make_dir(self._package_hdfs_dir_path, permission=600)
+                logging.debug("packages HDFS folder created")
+            else:
+                logging.debug("not creating packages HDFS folder as it is not required")
         except AlreadyExists:
             logging.debug("not creating packages HDFS folder as it already exists")
-        except InvalidURL:
-            logging.debug("not creating packages HDFS folder as it is not required")
-
 
         if self._hbase_host is not None:
             connection = happybase.Connection(self._hbase_host)
