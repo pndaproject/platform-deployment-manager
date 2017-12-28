@@ -26,6 +26,7 @@ import json
 import logging
 import datetime
 import requests
+import commands
 
 import deployer_utils
 from plugins.base_creator import Creator
@@ -94,6 +95,13 @@ class OozieCreator(Creator):
         # platform shared libs e.g. hbase
         properties['oozie.libpath'] = '/pnda/deployment/platform'
 
+        # insert default queue selection
+        ret, res = commands.getstatusoutput('sudo -u %s %s' % (properties['application_user'], self._environment['queue_policy']) )
+        if ret == 0:
+            properties['mapreduce.job.queuename'] = res
+        else:
+            logging.error("Policy: ERROR %s: %s", ret, res)
+
         # insert reference to coordinator xor workflow
         if 'coordinator.xml' in component['component_detail']:
             def_path = 'oozie.coord.application.path'
@@ -125,6 +133,17 @@ class OozieCreator(Creator):
         # just helps developers understand what has happened
         effective_job_properties = deployer_utils.dict_to_props(properties)
         self._hdfs_client.create_file(effective_job_properties, '%s/application.properties' % remote_path)
+	
+        # Add queue config into the default config if none is defined.
+        if 'mapreduce.job.queuename' in properties:
+	    defaults={'mapreduce.job.queuename':properties['mapreduce.job.queuename']}
+            try:
+                self._hdfs_client._hdfs.get_file_dir_status('%s/config-default.xml' % remote_path)
+                # TODO: If a config-default.xml already exists, then the config should be merged in the existing file.
+                # For now we don't set a default and expect the app developer to declare the queue manually.
+                logging.warning('config-default.xml already exisist, mapreduce.job.queuename needs to be configured explicitly.')
+            except:
+                self._hdfs_client.create_file(deployer_utils.dict_to_xml(defaults), '%s/config-default.xml' % remote_path)
 
         # submit to oozie
         result = self._submit_oozie(properties)

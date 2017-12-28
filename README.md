@@ -428,7 +428,7 @@ environment_name_node                   hdfs://cluster-cdh-mgr1:8020
 environment_namespace                   platform_app
 environment_oozie_uri                   http://cluster-cdh-mgr1:11000/oozie
 environment_opentsdb                    192.168.1.6:4242
-environment_queue_name                  default
+environment_queue_policy                /opt/pnda/rm-wrapper/yarn-policy.sh
 environment_webhdfs_host                cluster-cdh-mgr1
 environment_webhdfs_port                50070
 environment_yarn_node_managers          cluster-cdh-dn0
@@ -446,8 +446,9 @@ The following varibles are only injected for Oozie components.
 component_end                  2016-03-31T17:07Z
 component_start                2016-03-24T17:07Z
 mapreduce.job.user.name        hdfs
+mapreduce.job.queuename        root.applications.prod
 oozie.coord.application.path   hdfs://cluster-cdh-mgr1:8020/user/application_id/component_name/coordinator.xml
 oozie.libpath                  /pnda/deployment/platform
 oozie.use.system.libpath       true
-user.name                      hdfs
+user.name                      prod1
 ````
