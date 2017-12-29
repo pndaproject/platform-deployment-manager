@@ -82,6 +82,7 @@ To build the Deployment Manager, change to the `api` directory, which contains t
   * [GET /applications](#list-all-applications)
   * [GET /packages/_package_/applications](#list-applications-that-have-been-created-from-package)
   * [GET /applications/_application_/status](#get-the-status-for-application)
+  * [GET /applications/_application_/summary](#get-the-summary-status-for-application)
   * [POST /applications/_application_/start](#start-application)
   * [POST /applications/_application_/stop](#stop-application)
   * [GET /applications/_application_](#get-full-information-for-application)
@@ -268,6 +269,91 @@ Response Codes:
 		"name": "spark-batch-example-app-instance"
 }
 
+````
+
+### Get the summary status for _application_
+````
+GET /applications/<application>/summary
+
+Response Codes:
+200 - OK
+404 - Application not known
+500 - Server Error
+````
+
+### Summary status in case of oozie component
+
+````
+{
+  "oozie-application": {
+    "aggregate_status": "STARTED_RUNNING_WITH_ERRORS",
+    "oozie-1": {
+      "status": "WARN",
+      "aggregate_status": "STARTED_RUNNING_WITH_ERRORS",
+      "actions": {
+        "workflow-1": {
+          "status": "WARN",
+          "oozieId": "0000004-171229054340125-oozie-oozi-W",
+          "actions": {
+            "subworkflow-1": {
+              "status": "WARN",
+              "oozieId": "0000005-171229054340125-oozie-oozi-W",
+              "actions": {
+                "job-2": {
+                  "status": "ERROR",
+                  "information": "No JSON object could be decoded",
+                  "applicationType": "SPARK",
+                  "name": "process",
+                  "yarnId": "application_1514526198433_0022"
+                },
+                "job-1": {
+                  "status": "OK",
+                  "information": null,
+                  "applicationType": "MAPREDUCE",
+                  "name": "download",
+                  "yarnId": "application_1514526198433_0019"
+                }
+              },
+              "name": "oozie-application-subworkflow"
+            }
+          },
+          "name": "oozie-application-workflow"
+        }
+      },
+      "oozieId": "0000003-171229054340125-oozie-oozi-C",
+      "name": "oozie-application-coordinator"
+    }
+  }
+}
+````
+### Summary status in case of spark-streaming component
+````
+{
+  "spark-streaming-application": {
+    "aggregate_status": "STARTED_RUNNING_WITH_NO_ERRORS",
+    "sparkStreaming-1": {
+      "information": {
+        "stageSummary": {
+          "active": 0,
+          "number_of_stages": 128,
+          "complete": 128,
+          "pending": 0,
+          "failed": 0
+        },
+        "jobSummary": {
+          "unknown": 0,
+          "number_of_jobs": 32,
+          "running": 0,
+          "succeeded": 32,
+          "failed": 0
+        }
+      },
+      "aggregate_status": "STARTED_RUNNING_WITH_NO_ERRORS",
+      "name": "spark-streaming-application-example-job",
+      "yarnId": "application_1514526198433_0069"
+    }
+  }
+}
 ````
 
 ### Start _application_

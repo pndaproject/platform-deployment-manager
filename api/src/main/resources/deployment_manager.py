@@ -41,7 +41,7 @@ def milli_time():
 
 
 class DeploymentManager(object):
-    def __init__(self, repository, package_registrar, application_registrar, environment, config):
+    def __init__(self, repository, package_registrar, application_registrar, application_summary_registrar, environment, config):
         self._repository = repository
         self._package_registrar = package_registrar
         self._application_registrar = application_registrar
@@ -49,6 +49,7 @@ class DeploymentManager(object):
         self._config = config
         self._application_creator = application_creator.ApplicationCreator(config, environment,
                                                                            environment['namespace'])
+        self._application_summary_registrar = application_summary_registrar
         self._package_parser = PackageParser()
         self._package_progress = {}
         self._lock = threading.RLock()
@@ -347,6 +348,11 @@ class DeploymentManager(object):
         record = self._application_creator.get_application_runtime_details(application, create_data)
         record['status'] = self.get_application_info(application)['status']
         record['name'] = application
+        return record
+
+    def get_application_summary(self, application):
+        logging.info('get_application_summary')
+        record = self._application_summary_registrar.get_summary_data(application)
         return record
 
     def create_application(self, package, application, overrides):

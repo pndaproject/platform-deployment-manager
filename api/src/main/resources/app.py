@@ -34,6 +34,7 @@ from tornado.options import define, options
 import package_registrar
 import application_registrar
 import deployer_utils
+import application_summary_registrar
 import deployment_manager
 from deployer_system_test import DeployerRestClientTester
 from exceptiondef import NotFound, ConflictingState, FailedValidation, FailedCreation
@@ -239,11 +240,12 @@ class ApplicationDetailHandler(BaseHandler):
                 self.send_result(ret)
             elif action == 'detail':
                 self.send_result(dm.get_application_detail(name))
+            elif action == 'summary':
+                self.send_result(dm.get_application_summary(name))
             else:
-                self.send_client_error("%s is not a valid query (status|detail)" % action)
+                self.send_client_error("%s is not a valid query (status|detail|summary)" % action)
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
-
 
 class ApplicationHandler(BaseHandler):
     @asynchronous
@@ -310,6 +312,8 @@ def main():
                                                   config['environment']['webhdfs_port'],
                                                   config['config']['stage_root']),
                                               application_registrar.HbaseApplicationRegistrar(
+                                                  config['environment']['hbase_thrift_server']),
+                                              application_summary_registrar.HBaseAppplicationSummary(
                                                   config['environment']['hbase_thrift_server']),
                                               config['environment'],
                                               config['config'])
