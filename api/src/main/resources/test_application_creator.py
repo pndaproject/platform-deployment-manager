@@ -225,8 +225,9 @@ class ApplicationCreatorTests(unittest.TestCase):
     @patch('application_creator.shutil')
     @patch('application_creator.os')
     @patch('application_creator.tarfile')
+    @patch('commands.getstatusoutput')
     # pylint: disable=unused-argument
-    def test_fail_create_application(self, tar_mock, os_mock, shutil_mock, spur_ssh,
+    def test_fail_create_application(self, cmd_mock, tar_mock, os_mock, shutil_mock, spur_ssh,
                                      hdfs_client_mock, post_mock, put_mock, exec_ssh_mock,
                                      os_sys_mock, dt_mock, hive_mock, hbase_mock):
         dt_mock.utcnow.return_value = (datetime(2013, 01, 01))
@@ -239,6 +240,7 @@ class ApplicationCreatorTests(unittest.TestCase):
                 return {'id': 'someid'}
 
         post_mock.return_value = Resp()
+        cmd_mock.return_value = (0, 'dev')
         with patch("__builtin__.open", mock_open(read_data="[]")):
             creator = ApplicationCreator(self.config, self.environment, self.service)
             self.assertRaises(FailedCreation, creator.create_application, 'abcd', self.package_metadata_2, 'aname', self.property_overrides)
@@ -255,8 +257,9 @@ class ApplicationCreatorTests(unittest.TestCase):
     @patch('application_creator.shutil')
     @patch('application_creator.os')
     @patch('application_creator.tarfile')
+    @patch('commands.getstatusoutput')
     # pylint: disable=unused-argument
-    def test_user_name_fail(self, tar_mock, os_mock, shutil_mock, spur_ssh,
+    def test_user_name_fail(self, cmd_mock, tar_mock, os_mock, shutil_mock, spur_ssh,
                             hdfs_client_mock, post_mock, put_mock, exec_ssh_mock,
                             os_sys_mock, dt_mock, hive_mock, hbase_mock):
 
@@ -267,6 +270,7 @@ class ApplicationCreatorTests(unittest.TestCase):
                 return {'id': 'someid'}
 
         post_mock.return_value = Resp()
+        cmd_mock.return_value = (0, 'dev')
 
         with patch("__builtin__.open", mock_open(read_data="[]")):
             creator = ApplicationCreator(self.config, self.environment, self.service)
@@ -288,8 +292,9 @@ class ApplicationCreatorTests(unittest.TestCase):
     @patch('application_creator.shutil')
     @patch('application_creator.os')
     @patch('application_creator.tarfile')
+    @patch('commands.getstatusoutput')
     # pylint: disable=unused-argument
-    def test_app_name_fail(self, tar_mock, os_mock, shutil_mock, spur_ssh,
+    def test_app_name_fail(self, cmd_mock, tar_mock, os_mock, shutil_mock, spur_ssh,
                            hdfs_client_mock, post_mock, put_mock, exec_ssh_mock,
                            os_sys_mock, dt_mock, hive_mock, hbase_mock):
 
@@ -300,6 +305,7 @@ class ApplicationCreatorTests(unittest.TestCase):
                 return {'id': 'someid'}
 
         post_mock.return_value = Resp()
+        cmd_mock.return_value = (0, 'dev')
 
         with patch("__builtin__.open", mock_open(read_data="[]")):
             creator = ApplicationCreator(self.config, self.environment, self.service)
@@ -322,8 +328,9 @@ class ApplicationCreatorTests(unittest.TestCase):
     @patch('application_creator.os')
     @patch('application_creator.tarfile')
     @patch('shutil.copy')
+    @patch('commands.getstatusoutput')
     # pylint: disable=unused-argument
-    def test_app_name_ok(self, copy_mock, tar_mock, os_mock, shutil_mock, spur_ssh,
+    def test_app_name_ok(self, cmd_mock, copy_mock, tar_mock, os_mock, shutil_mock, spur_ssh,
                          hdfs_client_mock, post_mock, put_mock, exec_ssh_mock,
                          os_sys_mock, dt_mock, hive_mock, hbase_mock):
 
@@ -334,6 +341,7 @@ class ApplicationCreatorTests(unittest.TestCase):
                 return {'id': 'someid'}
 
         post_mock.return_value = Resp()
+        cmd_mock.return_value = (0, 'dev')
 
         with patch("__builtin__.open", mock_open(read_data="[]")):
             creator = ApplicationCreator(self.config, self.environment, self.service)
