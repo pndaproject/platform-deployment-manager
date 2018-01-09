@@ -190,8 +190,9 @@ class DeploymentManagerTest(unittest.TestCase):
     @patch('application_creator.os')
     @patch('application_creator.tarfile')
     @patch('os.remove')
+    @patch('commands.getstatusoutput')
     # pylint: disable=unused-argument
-    def test_create_oozie_error(self, os_mock_rem, tar_mock, os_mock, shutil_mock, spur_ssh,
+    def test_create_oozie_error(self, cmd_mock, os_mock_rem, tar_mock, os_mock, shutil_mock, spur_ssh,
                                 hdfs_client_mock, post_mock, put_mock, exec_ssh_mock,
                                 os_sys_mock, dt_mock, hive_mock, hbase_mock):
 
@@ -229,6 +230,7 @@ class DeploymentManagerTest(unittest.TestCase):
                 return {'id': 'someid'}
 
         post_mock.return_value = Resp()
+        cmd_mock.return_value = (0, 'dev')
 
         self.mock_package_registar.get_package_data.return_value = 'abcd'
         self.mock_package_registar.get_package_metadata.return_value = {

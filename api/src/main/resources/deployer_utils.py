@@ -361,6 +361,13 @@ class HDFS(object):
 
         self._hdfs.delete_file_dir(canonicalize(path), recursive)
 
+    def file_exists(self, path):
+
+        try:
+            self._hdfs.get_file_dir_status(path)
+            return True
+        except:
+            return False
 
 def exec_ssh(host, user, key, ssh_commands):
     shell = spur.SshShell(
