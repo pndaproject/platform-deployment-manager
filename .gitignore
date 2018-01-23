@@ -6,3 +6,4 @@ target/
 .settings/
 .coverage
 pnda-build/
+.virtualenv
