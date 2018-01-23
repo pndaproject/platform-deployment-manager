@@ -29,6 +29,9 @@ from Hbase_thrift import AlreadyExists
 from package_parser import PackageParser
 from deployer_utils import HDFS
 
+from exceptiondef import FailedConnection
+
+
 class HbasePackageRegistrar(object):
     COLUMN_DEPLOY_STATUS = "cf:deploy_status"
 
@@ -130,12 +133,17 @@ class HbasePackageRegistrar(object):
     def list_packages(self):
         logging.debug("List all packages")
 
-        connection = happybase.Connection(self._hbase_host)
+        connection = None
         try:
+            connection = happybase.Connection(self._hbase_host)
             table = connection.table(self._table_name)
             result = [key for key, _ in table.scan(columns=['cf:name'])]
+        except Exception as e:
+            logging.debug(str(e))
+            raise FailedConnection('Unable to connect to the HBase master')
         finally:
-            connection.close()
+            if connection:
+                connection.close()
         return result
 
     def generate_record(self, metadata):
@@ -143,7 +151,7 @@ class HbasePackageRegistrar(object):
             'cf:name': '-'.join(metadata["package_name"].split("-")[:-1]),
             'cf:version': metadata["package_name"].split("-")[-1],
             'cf:metadata': json.dumps(metadata),
-            'cf:package_data': "%s/%s" %  (self._package_hdfs_dir_path, metadata["package_name"])
+            'cf:package_data': "%s/%s" % (self._package_hdfs_dir_path, metadata["package_name"])
         }
 
     def _read_from_db(self, key, columns):

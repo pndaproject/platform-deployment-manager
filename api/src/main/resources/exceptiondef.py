@@ -31,6 +31,7 @@ class DmException(Exception):
     def __str__(self):
         return str(self.msg)
 
+
 class NotFound(DmException):
 
     def __init__(self, arg):
@@ -57,3 +58,12 @@ class FailedCreation(DmException):
     def __init__(self, arg):
         super(FailedCreation, self).__init__(arg)
         self.msg = arg
+
+
+class FailedConnection(DmException):
+
+    def __init__(self, arg):
+        super(FailedConnection, self).__init__(arg)
+        self.msg = arg
+
+
