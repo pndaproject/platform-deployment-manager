@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 ### Added:
 - PNDA-2834: Actual application status by deployment manager
+- PNDA-3654: Support for spark2 streaming applications
+ 
 ### Changed
 - PNDA-3555: Place files in HDFS for packages and applications under `/pnda/system/deployment-manager/<packages|applications>`.
 - PNDA-3601: disable emailtext in Jenkins file and replace it with notifier stage and job
