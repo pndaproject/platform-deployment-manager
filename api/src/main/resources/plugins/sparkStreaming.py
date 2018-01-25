@@ -77,6 +77,8 @@ class SparkStreamingCreator(Creator):
         root_user = self._environment['cluster_root_user']
         target_host = 'localhost'
 
+        if 'component_spark_version' not in properties:
+            properties['component_spark_version'] = '1'
         if 'component_spark_submit_args' not in properties:
             properties['component_spark_submit_args'] = ''
         if 'component_py_files' not in properties:

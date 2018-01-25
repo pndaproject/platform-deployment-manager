@@ -25,7 +25,7 @@ HTTP and Python bindings are provided for these APIs.
 
 ## Connecting
 
-By default, the Deployment Manager is installed on `edge` node o. In order to access it go to: http://[cluster-name]-cdh-edge:5000
+By default, the Deployment Manager is installed on the `edge` node. To access the API use: http://[cluster-name]-cdh-edge:5000
 
 ## Repository ##
 
@@ -523,6 +523,17 @@ environment_yarn_resource_manager_mr_port 8032
 environment_yarn_resource_manager_port  8088
 environment_zookeeper_port              2181
 environment_zookeeper_quorum            cluster-cdh-mgr1
+````
+
+## Spark Streamining Specific Variables ##
+The following varibles are only injected for Spark streaming components. They may be overridden in properties.json, for example to override `component_spark_version`, include `spark_version` in properties.json.
+
+````
+component_spark_version            major version of spark to use. Only applicable to HDP clusters, when using CDH PNDA does not support side-by-side Spark frameworks and whatever version is run by the spark-submit command will be used.
+component_spark_submit_args        additional arguments to spark-submit
+(java only) component_main_jar     the jar containing the job code
+(python only) component_main_py    the python file containing the job code
+(python only) component_py_files   additional python files to pass to spark-submit
 ````
 
 ## Oozie Specific Variables ##
