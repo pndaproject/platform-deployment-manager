@@ -25,13 +25,13 @@ either express or implied.
 import json
 import logging
 import datetime
+import xml.etree.ElementTree as ElementTree
 import commands
 import requests
 
 import deployer_utils
 from plugins.base_creator import Creator
 from exceptiondef import FailedCreation
-
 
 class OozieCreator(Creator):
 
@@ -137,12 +137,40 @@ class OozieCreator(Creator):
         # Add queue config into the default config if none is defined.
         if 'mapreduce.job.queuename' in properties:
             defaults = {'mapreduce.job.queuename':properties['mapreduce.job.queuename']}
-            if self._hdfs_client.file_exists('%s/config-default.xml' % remote_path):
-                # TODO: If a config-default.xml already exists, then the config should be merged in the existing file.
-                # For now we don't set a default and expect the app developer to declare the queue manually.
-                logging.warning('config-default.xml already exisist, mapreduce.job.queuename needs to be configured explicitly.')
-            else:
+            try:
+                data = self._hdfs_client.read_file('%s/config-default.xml' % remote_path)
+            except:
+                logging.debug('No config-default.xml is detected.')
+                data = None
+
+            if data is None:
+                logging.debug('Creating config-default.xml to inject mapreduce.job.queuename property.')
                 self._hdfs_client.create_file(deployer_utils.dict_to_xml(defaults), '%s/config-default.xml' % remote_path)
+            else:
+                prop = None
+                root = None
+                try:
+                    root = ElementTree.fromstring(data)
+                    prop = root.find("./property/[name='mapreduce.job.queuename']")
+                except:
+                    logging.error('Failed to parse the config-default.xml data.')
+
+                if root is not None:
+                    if prop is not None:
+                        try:
+                            queue = prop.find('value').text
+                            logging.debug('mapreduce.job.queuename is already set' + queue)
+                        except:
+                            logging.error('config-default.xml [\'mapred.queue.names\'] has no value.')
+
+                    else:
+                        logging.debug('adding mapred.queue.names in config-default.xml')
+                        prop = ElementTree.SubElement(root, 'property')
+                        ElementTree.SubElement(prop, 'name').text = 'mapreduce.job.queuename'
+                        ElementTree.SubElement(prop, 'value').text = 'dev'
+                        data = ElementTree.tostring(root)
+                        self._hdfs_client.remove('%s/config-default.xml' % remote_path)
+                        self._hdfs_client.create_file(data, '%s/config-default.xml' % remote_path)
 
         # submit to oozie
         result = self._submit_oozie(properties)
