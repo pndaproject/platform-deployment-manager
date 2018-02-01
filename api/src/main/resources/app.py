@@ -301,7 +301,7 @@ def main():
 
     logging.info("Starting up...")
 
-    deployer_utils.fill_hadoop_env(config['environment'])
+    deployer_utils.fill_hadoop_env(config['environment'], config['config'])
 
     package_repository = PackageRepoRestClient(config['config']["package_repository"], config['config']['stage_root'])
     dm = deployment_manager.DeploymentManager(package_repository,
