@@ -25,6 +25,9 @@ import tarfile
 import StringIO
 import logging
 import traceback
+import time
+from threading import Thread
+
 import spur
 from pywebhdfs.webhdfs import PyWebHdfsClient
 
@@ -54,14 +57,40 @@ def get_nameservice(cm_host, cluster_name, service_name, user_name='admin', pass
             logging.debug("Found named service %s for %s", nameservice, service_name)
     return nameservice
 
-
-def fill_hadoop_env(env):
+def update_hadoop_env(env):
+    # Update the env in a way that ensure values are only updated in the main descriptor and never removed
+    # so that any caller will always be able to query the values it expects to find in the env descriptor
+    #   1. copy the environment descriptor
+    #   2. update the temporary copy
+    #   3. push the temporary values into the main descriptor
+    tmp_env = dict(env)
+    logging.debug('Updating environment descriptor')
     if env['hadoop_distro'] == 'CDH':
-        fill_hadoop_env_cdh(env)
+        fill_hadoop_env_cdh(tmp_env)
     else:
-        fill_hadoop_env_hdp(env)
-
+        fill_hadoop_env_hdp(tmp_env)
+    logging.debug('Updated environment descriptor')
+    for key in tmp_env:
+        # Dictionary get/put operations are atomic so inherently thread safe and don't need a lock
+        env[key] = tmp_env[key]
     logging.debug(env)
+
+def monitor_hadoop_env(env, config):
+    while True:
+        try:
+            update_hadoop_env(env)
+        except Exception:
+            logging.error("Environment sync failed")
+            logging.error(traceback.format_exc())
+
+        sleep_seconds = config['environment_sync_interval']
+        logging.debug('Next environment sync will be in %s seconds', sleep_seconds)
+        time.sleep(sleep_seconds)
+
+def fill_hadoop_env(env, config):
+    update_hadoop_env(env)
+    env_monitor_thread = Thread(target=monitor_hadoop_env, args=[env, config])
+    env_monitor_thread.start()
 
 def ambari_request(ambari, uri):
     hadoop_manager_ip = ambari[0]
@@ -152,8 +181,6 @@ def fill_hadoop_env_hdp(env):
                 env['hive_server'] = '%s' % component_host(component_detail)
                 env['hive_port'] = '10000'
 
-    logging.debug(env)
-
 def fill_hadoop_env_cdh(env):
     # pylint: disable=E1103
     api = connect_cm(
@@ -167,6 +194,9 @@ def fill_hadoop_env_cdh(env):
 
     logging.debug('getting ' + cluster_name)
     env['cm_status_links'] = {}
+    env.pop('yarn_node_managers', None)
+    env.pop('yarn_resource_manager_host', None)
+    env.pop('zookeeper_quorum', None)
 
     cluster = api.get_cluster(cluster_name)
     for service in cluster.get_all_services():

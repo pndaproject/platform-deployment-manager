@@ -579,7 +579,7 @@ def main():
                         level=logging.getLevelName(CONFIG['config']['log_level']),
                         stream=sys.stderr)
     logging.info('Starting... Building actual status for applications')
-    deployer_utils.fill_hadoop_env(CONFIG['environment'])
+    deployer_utils.fill_hadoop_env(CONFIG['environment'], CONFIG['config'])
     _APPLICATION_REGISTRAR = application_registrar.HbaseApplicationRegistrar\
     (CONFIG['environment']['hbase_thrift_server'])
     _HBASE = application_summary_registrar.HBaseAppplicationSummary\
