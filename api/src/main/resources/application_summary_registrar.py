@@ -2,6 +2,7 @@ import json
 import logging
 import happybase
 from Hbase_thrift import AlreadyExists
+from thriftpy.transport import TTransportException
 
 #pylint: disable=E0602
 
@@ -15,7 +16,7 @@ class HBaseAppplicationSummary(object):
                 connection.create_table(self._table_name, {'cf': dict()})
             except AlreadyExists as error_message:
                 logging.info(str(error_message))
-            except thriftpy.transport.TTransportException as error_message:
+            except TTransportException as error_message:
                 logging.debug(str(error_message))
             finally:
                 connection.close()
@@ -28,7 +29,7 @@ class HBaseAppplicationSummary(object):
             for application, _ in table.scan():
                 if application not in app_list:
                     table.delete(application)
-        except thriftpy.transport.TTransportException as error_message:
+        except TTransportException as error_message:
             logging.debug(str(error_message))
         finally:
             connection.close()
@@ -39,7 +40,7 @@ class HBaseAppplicationSummary(object):
             connection = happybase.Connection(self._hbase_host)
             table = connection.table(self._table_name)
             table.put(application, summary)
-        except thriftpy.transport.TTransportException as error_message:
+        except TTransportException as error_message:
             logging.debug(str(error_message))
         finally:
             connection.close()
@@ -62,7 +63,7 @@ class HBaseAppplicationSummary(object):
             connection = happybase.Connection(self._hbase_host)
             table = connection.table(self._table_name)
             data = table.row(key)
-        except thriftpy.transport.TTransportException as error_message:
+        except TTransportException as error_message:
             logging.debug(str(error_message))
         finally:
             connection.close()
@@ -74,7 +75,7 @@ class HBaseAppplicationSummary(object):
             connection = happybase.Connection(self._hbase_host)
             table = connection.table("platform_applications")
             data = table.row(key)
-        except thriftpy.transport.TTransportException as error_message:
+        except TTransportException as error_message:
             logging.debug(str(error_message))
         finally:
             connection.close()
