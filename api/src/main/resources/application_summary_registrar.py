@@ -14,10 +14,11 @@ class HBaseAppplicationSummary(object):
             try:
                 connection = happybase.Connection(self._hbase_host)
                 connection.create_table(self._table_name, {'cf': dict()})
+                logging.debug("applications summary table created")
             except AlreadyExists as error_message:
-                logging.info(str(error_message))
+                logging.debug("applications summary table already exists")
             except TTransportException as error_message:
-                logging.debug(str(error_message))
+                logging.error(str(error_message))
             finally:
                 connection.close()
 
@@ -30,7 +31,7 @@ class HBaseAppplicationSummary(object):
                 if application not in app_list:
                     table.delete(application)
         except TTransportException as error_message:
-            logging.debug(str(error_message))
+            logging.error(str(error_message))
         finally:
             connection.close()
 
@@ -41,7 +42,7 @@ class HBaseAppplicationSummary(object):
             table = connection.table(self._table_name)
             table.put(application, summary)
         except TTransportException as error_message:
-            logging.debug(str(error_message))
+            logging.error(str(error_message))
         finally:
             connection.close()
 
@@ -64,7 +65,7 @@ class HBaseAppplicationSummary(object):
             table = connection.table(self._table_name)
             data = table.row(key)
         except TTransportException as error_message:
-            logging.debug(str(error_message))
+            logging.error(str(error_message))
         finally:
             connection.close()
         return data
@@ -76,7 +77,7 @@ class HBaseAppplicationSummary(object):
             table = connection.table("platform_applications")
             data = table.row(key)
         except TTransportException as error_message:
-            logging.debug(str(error_message))
+            logging.error(str(error_message))
         finally:
             connection.close()
         return data
