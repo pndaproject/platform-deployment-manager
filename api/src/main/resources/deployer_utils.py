@@ -90,6 +90,7 @@ def monitor_hadoop_env(env, config):
 def fill_hadoop_env(env, config):
     update_hadoop_env(env)
     env_monitor_thread = Thread(target=monitor_hadoop_env, args=[env, config])
+    env_monitor_thread.daemon = True
     env_monitor_thread.start()
 
 def ambari_request(ambari, uri):
