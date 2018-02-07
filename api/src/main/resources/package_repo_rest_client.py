@@ -21,7 +21,9 @@ either express or implied.
 import json
 import logging
 import requests
-from  exceptiondef import NotFound
+import re
+from exceptiondef import FailedConnection
+from requests.exceptions import RequestException
 
 
 class PackageRepoRestClient(object):
@@ -69,14 +71,33 @@ class PackageRepoRestClient(object):
         response = self.make_rest_get_request(url)
         return json.loads(response.content)
 
+    @staticmethod
+    def parse_error_msg_from_html_response(html_str):
+        title_tag = re.search('<title>(.+?)<.*/title>', html_str)
+        if title_tag:
+            cause_msg = re.sub('<[A-Za-z\/][^>]*>', '', title_tag.group())
+            return cause_msg
+        return html_str
+
     def make_rest_get_request(self, path, expected_codes=None):
         if not expected_codes:
             expected_codes = [200]
         url = self.api_url + path
         logging.debug("GET: " + url)
-        response = requests.get(url, timeout=120)
+
+        try:
+            response = requests.get(url, timeout=120)
+        except RequestException as e:
+            logging.debug("Request error: " + str(e))
+            error_msg = 'Unable to connect to the Package Repository Manager'
+            raise FailedConnection(error_msg)
+
         logging.debug("response code: " + str(response.status_code))
-        if (404 not in expected_codes) and (response.status_code == 404):
-            raise NotFound(path)
-        assert response.status_code in expected_codes
+
+        if response.status_code not in expected_codes:
+            error_msg = PackageRepoRestClient.parse_error_msg_from_html_response(response.text)
+            error_msg = "Package Repository Manager - {} (request path = {})".format(error_msg, path)
+            logging.debug("Server error: " + str(error_msg))
+        assert response.status_code in expected_codes, error_msg
+
         return response

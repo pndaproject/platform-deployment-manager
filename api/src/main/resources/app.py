@@ -37,7 +37,7 @@ import deployer_utils
 import application_summary_registrar
 import deployment_manager
 from deployer_system_test import DeployerRestClientTester
-from exceptiondef import NotFound, ConflictingState, FailedValidation, FailedCreation
+from exceptiondef import NotFound, ConflictingState, FailedValidation, FailedCreation, FailedConnection
 from async_dispatcher import AsyncDispatcher
 from package_repo_rest_client import PackageRepoRestClient
 
@@ -81,6 +81,10 @@ class BaseHandler(CorsMixin, tornado.web.RequestHandler):
             elif isinstance(ex, FailedCreation):
                 logging.info(ex.msg)
                 self.set_status(500)
+                self.finish(ex.msg)
+            elif isinstance(ex, FailedConnection):
+                logging.info(ex.msg)
+                self.set_status(503)
                 self.finish(ex.msg)
             else:
                 self.set_status(500)
