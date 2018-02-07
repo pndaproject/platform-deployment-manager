@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - PNDA-3354: Fix error causing exception to appear in log when trying to deploy packages that do not exist
+- PNDA-2282: Improved reporting in error scenarios
 
 ## [0.5.0] 2017-11-24
 ### Added:
