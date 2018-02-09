@@ -3,17 +3,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### Added:
-- PNDA-2834: Actual application status by deployment manager
+- PNDA-439: Support deploying/running app as specific user
+- PNDA-2834: Better and more detailed application status reporting
 - PNDA-3654: Support for spark2 streaming applications
-- PNDA-4007: Ability to specify default queue configuratio for oozie components
+- PNDA-4007: Ability to specify default queue configuration for oozie components
 
 ### Changed
 - PNDA-3555: Place files in HDFS for packages and applications under `/pnda/system/deployment-manager/<packages|applications>`.
-- PNDA-3601: disable emailtext in Jenkins file and replace it with notifier stage and job
+- PNDA-3601: Disable emailtext in Jenkins file and replace it with notifier stage and job
 
 ### Fixed
 - PNDA-3354: Fix error causing exception to appear in log when trying to deploy packages that do not exist
 - PNDA-2282: Improved reporting in error scenarios
+- PNDA-3613: Deployment manager tests require sudo to run but should not
+- PNDA-4056: Automatically sync environment descriptor
 
 ## [0.5.0] 2017-11-24
 ### Added:
