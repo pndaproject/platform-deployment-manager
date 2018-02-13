@@ -213,5 +213,4 @@ class OozieCreator(Creator):
     def _stop_oozie(self, job_id, oozie_user):
         logging.debug("_stop_oozie: %s", job_id)
         oozie_url = '%s/v1/job/%s?action=suspend&user.name=%s' % (self._environment['oozie_uri'], job_id, oozie_user)
-        print oozie_url
         requests.put(oozie_url)

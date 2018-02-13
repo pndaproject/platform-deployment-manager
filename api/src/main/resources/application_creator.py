@@ -59,7 +59,6 @@ class ApplicationCreator(object):
         except KeyError:
             raise FailedCreation('User %s does not exist. Verify that this user account exists on the machine running the deployment manager.' % user_name)
 
-        print 'done'
         stage_path = self._stage_package(package_data_path)
 
         # create each class of components in the package, aggregating any
@@ -151,7 +150,7 @@ class ApplicationCreator(object):
 
     def _load_creator(self, component_type):
 
-        print "_load_creator", component_type
+        logging.debug("_load_creator %s", component_type)
 
         creator = self._component_creators.get(component_type)
 
