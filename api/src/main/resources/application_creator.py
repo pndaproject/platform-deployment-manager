@@ -84,14 +84,19 @@ class ApplicationCreator(object):
 
         logging.debug("destroy_application: %s %s", application_name, application_create_data)
 
+        app_hdfs_root = None
         for component_type, component_create_data in application_create_data.iteritems():
             creator = self._load_creator(component_type)
             creator.destroy_components(application_name, component_create_data)
+            if len(component_create_data) > 0 and 'application_hdfs_root' in component_create_data[0]:
+                app_hdfs_root = component_create_data[0]['application_hdfs_root']
 
         local_path = '/opt/%s/%s/' % (self._service, application_name)
         if os.path.isdir(local_path):
             os.rmdir(local_path)
-        self._hdfs_client.remove('/user/%s' % application_name, recursive=False)
+
+        if app_hdfs_root is not None:
+            self._hdfs_client.remove(app_hdfs_root, recursive=False)
 
     def start_application(self, application_name, application_create_data):
 

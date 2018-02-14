@@ -166,7 +166,8 @@ class Creator(object):
         props['component_application'] = application_name
         props['component_name'] = component['component_name']
         props['component_job_name'] = '%s-%s-job' % (props['component_application'], props['component_name'])
-        props['component_hdfs_root'] = '/pnda/system/deployment-manager/applications/%s/%s/%s' % (user_name, application_name, component['component_name'])
+        props['application_hdfs_root'] = '/pnda/system/deployment-manager/applications/%s/%s' % (user_name, application_name)
+        props['component_hdfs_root'] = '%s/%s' % (props['application_hdfs_root'], component['component_name'])
         props['application_user'] = user_name
         return props
 
@@ -245,6 +246,7 @@ class Creator(object):
             self._auto_fill_app_properties(staged_component_path, merged_props)
             result = self.create_component(staged_component_path, application_name, user_name, component, merged_props)
             result['component_name'] = component_name
+            result['application_hdfs_root'] = merged_props['application_hdfs_root']
             result['component_job_name'] = merged_props['component_job_name']
             result['descriptors'] = descriptor_result
             results.append(result)
