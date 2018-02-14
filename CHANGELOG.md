@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### Fixed
+- PNDA-4218: Fix application deletion when app name is an HDFS username
 
 ## [1.0.0] 2018-02-10
 ### Added:
