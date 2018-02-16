@@ -14,55 +14,46 @@ class AppplicationSummaryTests(unittest.TestCase):
         Check building aggregate status works on application level from component level
         """
         result = application_summary.process_application_data({'component-1': \
-        {'aggregate_status': 'STARTED_RUNNING_WITH_NO_ERRORS', 'yarnId': '1234'}})
-        self.assertEqual(result, 'STARTED_RUNNING_WITH_NO_ERRORS')
+        {'aggregate_status': 'RUNNING_WITH_ERRORS', 'yarnId': '1234'}})
+        self.assertEqual(result, 'RUNNING_WITH_ERRORS')
 
     @patch('application_summary.check_in_yarn')
-    @patch('application_summary.yarn_info')
     @patch('application_summary.spark_job_handler')
-    def test_spark_application(self, spark_job_patch, yarn_job_patch, yarn_check_patch):
+    def test_spark_application(self, spark_job_patch, yarn_check_patch):
         """
         Tetsing Spark application
         """
         #Spark application in case of Killed
-        yarn_check_patch.return_value = {'id': 'application_1234'}
-        yarn_job_patch.return_value = {'yarnFinalStatus': 'KILLED'}
+        yarn_check_patch.return_value = {'id': 'application_1234', 'state': 'KILLED', 'finalStatus': 'KILLED', \
+        'diagnostics': 'Killed'}
         result = application_summary.spark_application('app1-example-job')
-        self.assertEqual(result['aggregate_status'], '%s_%s_%s' % (ApplicationState.COMPLETED, \
-        'KILLED', FAILURE_STATUS['OK']))
+        self.assertEqual(result['aggregate_status'], '%s' % ('KILLED'))
 
         #Spark application in case of Failed
-        yarn_check_patch.return_value = {'id': 'application_1234'}
-        yarn_job_patch.return_value = {'yarnFinalStatus': 'FAILED'}
+        yarn_check_patch.return_value = {'id': 'application_1234', 'state': 'FINISHED', 'finalStatus': 'FAILED', \
+        'diagnostics': 'Failed'}
         result = application_summary.spark_application('app1-example-job')
-        self.assertEqual(result['aggregate_status'], '%s_%s_%s' % (ApplicationState.COMPLETED, \
-        'FAILED', FAILURE_STATUS['ERROR']))
+        self.assertEqual(result['aggregate_status'], '%s' % ('FINISHED_FAILED'))
 
         #Spark application in case of Running with No errors
-        yarn_check_patch.return_value = {'id': 'application_1234'}
-        yarn_job_patch.return_value = {'yarnStatus': 'RUNNING', \
-        'yarnFinalStatus': 'UNDEFINED'}
+        yarn_check_patch.return_value = {'id': 'application_1234', 'state': 'RUNNING', \
+        'finalStatus': 'UNDEFINED'}
         spark_job_patch.return_value = {'state': 'OK', 'information': 'job_stage data'}
         result = application_summary.spark_application('app1-example-job')
-        self.assertEqual(result['aggregate_status'], '%s_%s_%s' % (ApplicationState.STARTED, \
-        'RUNNING', ERROR_STATUS['OK']))
+        self.assertEqual(result['aggregate_status'], '%s' % ('RUNNING'))
 
         #Spark application in case of Running with errors
-        yarn_check_patch.return_value = {'id': 'application_1234'}
-        yarn_job_patch.return_value = {'yarnStatus': 'RUNNING', \
-        'yarnFinalStatus': 'UNDEFINED'}
+        yarn_check_patch.return_value = {'id': 'application_1234', 'state': 'RUNNING', \
+        'finalStatus': 'UNDEFINED'}
         spark_job_patch.return_value = {'state': 'ERROR', 'information': 'job_stage data'}
         result = application_summary.spark_application('app1-example-job')
-        self.assertEqual(result['aggregate_status'], '%s_%s_%s' % (ApplicationState.STARTED, \
-        'RUNNING', ERROR_STATUS['ERROR']))
+        self.assertEqual(result['aggregate_status'], '%s' % ('RUNNING_WITH_ERRORS'))
 
         #Spark application in other states than above states
-        yarn_check_patch.return_value = {'id': 'application_1234'}
-        yarn_job_patch.return_value = {'yarnStatus': 'ACCEPTED', \
-        'yarnFinalStatus': 'UNDEFINED'}
+        yarn_check_patch.return_value = {'id': 'application_1234', 'state': 'ACCEPTED', \
+        'finalStatus': 'UNDEFINED', 'diagnostics': 'Accepted'}
         result = application_summary.spark_application('app1-example-job')
-        self.assertEqual(result['aggregate_status'], '%s_%s_%s' % (ApplicationState.STARTED, \
-        'ACCEPTED', ERROR_STATUS['OK']))
+        self.assertEqual(result['aggregate_status'], '%s' % ('ACCEPTED'))
 
     @patch('requests.get')
     def test_check_in_yarn(self, mock_req):
@@ -94,7 +85,7 @@ class AppplicationSummaryTests(unittest.TestCase):
         self.assertEqual(result['id'], 'application_1235')
 
     @patch('application_summary.process_component_data')
-    @patch('application_summary.get_oozie_workflow_actions')
+    @patch('application_summary.oozie_action_handler')
     def test_oozie_coordinator_handler(self, oozie_worfklow_patch, process_component_data_patch):
         """
         Testing Oozie Coordinator
@@ -136,8 +127,7 @@ class AppplicationSummaryTests(unittest.TestCase):
             'coordJobName': 'o1-coordinator',
             'status': 'RUNNING'
         })
-        self.assertEqual(result['aggregate_status'], '%s_%s_%s' % \
-        (ApplicationState.STARTED, 'RUNNING', ERROR_STATUS['WARN']))
+        self.assertEqual(result['aggregate_status'], '%s' % ('RUNNING_WITH_ERRORS'))
 
         #Oozie Coordinator in case of Suspended and Workflow in OK state
         oozie_worfklow_patch.return_value = {
@@ -158,8 +148,7 @@ class AppplicationSummaryTests(unittest.TestCase):
             'coordJobName': 'o1-coordinator',
             'status': 'SUSPENDED'
         })
-        self.assertEqual(result['aggregate_status'], '%s_%s_%s' \
-        % (ApplicationState.COMPLETED, 'SUSPENDED', FAILURE_STATUS['OK']))
+        self.assertEqual(result['aggregate_status'], '%s' % ('SUSPENDED'))
 
         #Oozie Coordinator in case of Killed and one workflow in ERROR state
         oozie_worfklow_patch.return_value = {
@@ -180,11 +169,10 @@ class AppplicationSummaryTests(unittest.TestCase):
             'coordJobName': 'o1-coordinator',
             'status': 'KILLED'
         })
-        self.assertEqual(result['aggregate_status'], '%s_%s_%s' \
-        % (ApplicationState.COMPLETED, 'KILLED', FAILURE_STATUS['ERROR']))
+        self.assertEqual(result['aggregate_status'], '%s'  % ('KILLED_WITH_FAILURES'))
 
     @patch('application_summary.process_component_data')
-    @patch('application_summary.get_oozie_workflow_actions')
+    @patch('application_summary.oozie_action_handler')
     def test_oozie_workflow_handler(self, oozie_worfklow_patch, process_component_data_patch):
         """
         Testing Oozie Workflow
@@ -216,8 +204,7 @@ class AppplicationSummaryTests(unittest.TestCase):
             'appName': 'o2-workflow',
             'status': 'RUNNING'
         })
-        self.assertEqual(result['aggregate_status'], '%s_%s_%s' % \
-        (ApplicationState.STARTED, 'RUNNING', ERROR_STATUS['ERROR']))
+        self.assertEqual(result['aggregate_status'], '%s' % ('RUNNING_WITH_ERRORS'))
 
         #Oozie Workflow in case of Suspended and job in OK state
         oozie_worfklow_patch.return_value = {
@@ -237,8 +224,7 @@ class AppplicationSummaryTests(unittest.TestCase):
             'appName': 'o2-workflow',
             'status': 'SUSPENDED'
         })
-        self.assertEqual(result['aggregate_status'], '%s_%s_%s' % \
-        (ApplicationState.COMPLETED, 'SUSPENDED', FAILURE_STATUS['OK']))
+        self.assertEqual(result['aggregate_status'], '%s' % ('SUSPENDED'))
 
         #Oozie Workflow in case of Killed and job in OK state
         oozie_worfklow_patch.return_value = {
@@ -256,10 +242,9 @@ class AppplicationSummaryTests(unittest.TestCase):
             }],
             'id': '0123-oozie-oozi-C',
             'appName': 'o2-workflow',
-            'status': 'KILLED'
+            'status': 'SUCCEEDED'
         })
-        self.assertEqual(result['aggregate_status'], '%s_%s_%s' % \
-        (ApplicationState.COMPLETED, 'KILLED', FAILURE_STATUS['OK']))
+        self.assertEqual(result['aggregate_status'], '%s' % ('COMPLETED'))
 
     @patch('requests.get')
     def test_oozie_api_request(self, mock_req):
@@ -277,14 +262,14 @@ class AppplicationSummaryTests(unittest.TestCase):
     @patch('application_summary.oozie_api_request')
     @patch('application_summary.yarn_info')
     @patch('application_summary.spark_job_handler')
-    def test_get_oozie_workflow_actions(self, spark_job_patch, yarn_job_patch, oozie_api_patch):
+    def test_oozie_action_handler(self, spark_job_patch, yarn_job_patch, oozie_api_patch):
         """
         Testing Oozie component's action handling for both Coordinator and Workflow
         """
         #In case of Oozie workflow with a Mapreduce job whose Yarn status's Failed
         yarn_job_patch.return_value = {'yarnStatus': 'FAILED', \
         'yarnFinalStatus': 'FAILED', 'type': 'MAPREDUCE'}
-        result = application_summary.get_oozie_workflow_actions([
+        result = application_summary.oozie_action_handler([
             {
                 'status': 'RUNNING',
                 'externalId': 'job_1235',
@@ -321,7 +306,7 @@ class AppplicationSummaryTests(unittest.TestCase):
                 "succeeded": 112,
                 "failed": 0
             }}}
-        result = application_summary.get_oozie_workflow_actions([
+        result = application_summary.oozie_action_handler([
             {
                 'status': 'RUNNING',
                 'externalId': 'job_1235',
@@ -377,7 +362,7 @@ class AppplicationSummaryTests(unittest.TestCase):
                     'externalChildIDs': None
                 }
             ], 'id': '0124-oozie-oozi-W'}]
-        result = application_summary.get_oozie_workflow_actions([
+        result = application_summary.oozie_action_handler([
             {
                 'status': 'SUCCEEDED',
                 'externalId': '0123-oozie-oozi-W',
@@ -441,7 +426,7 @@ class AppplicationSummaryTests(unittest.TestCase):
             'information': {
                 'stageSummary': {
                     'active': 0,
-                    'number_of_stages': 2,
+                    'number_of_stages': 24,
                     'complete': 2,
                     'pending': 0,
                     'failed': 0
