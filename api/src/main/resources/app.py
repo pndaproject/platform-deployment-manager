@@ -256,13 +256,20 @@ class ApplicationHandler(BaseHandler):
     def put(self, aname):
         try:
             request_body = json.loads(self.request.body)
-            pname = request_body['package']
-        except:
+        except ValueError:
             self.send_client_error("Invalid request body")
             return
 
+        if 'package' not in request_body:
+            self.send_client_error("Invalid request body. Missing field 'package'")
+            return
+
+        if 'user' not in request_body:
+            self.send_client_error("Invalid request body. Missing field 'user'")
+            return
+
         def do_call():
-            dm.create_application(pname, aname, request_body)
+            dm.create_application(request_body['package'], aname, request_body)
             self.send_accepted()
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
