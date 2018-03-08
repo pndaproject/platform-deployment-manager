@@ -181,6 +181,7 @@ def fill_hadoop_env_hdp(env):
             elif role_name == "HIVE_SERVER":
                 env['hive_server'] = '%s' % component_host(component_detail)
                 env['hive_port'] = '10000'
+                env['cm_status_links']['HQUERY'] = 'http://%s:8080/#/main/view/HIVE/auto_hive_instance' % (hadoop_manager_ip)
 
 def fill_hadoop_env_cdh(env):
     # pylint: disable=E1103
