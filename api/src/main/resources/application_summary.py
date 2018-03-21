@@ -1,4 +1,5 @@
 import json
+import commands
 import multiprocessing
 import time
 import logging
@@ -368,43 +369,85 @@ def check_in_yarn(job_name):
         logging.debug(str(error_message))
     return run_app_info
 
-def spark_application(job_name):
+# pylint: disable=C0103
+
+def check_in_service_log(namespace, application, component_name):
+    '''
+    Check in service log in case of application failed to submit to YARN
+    '''
+    service_name = '%s-%s-%s' % (namespace, application, component_name)
+    (command, message, more_detail) = ('', '', '')
+    command = 'sudo journalctl -u %s.service' % service_name
+    out = commands.getoutput('%s -n 50' % command).split('\n')
+    more_detail = 'More details: execute "journalctl -u %s"' % service_name
+    for line in out:
+        if 'Exception:' in line:
+            message = '%s%s' % (line.split('Exception:')[0].split(' ')[-1], 'Exception')
+            break
+    if message == '':
+        message = '%s' % (more_detail)
+    else:
+        message = '%s. %s' % (message, more_detail)
+    return 'FAILED_TO_SUBMIT_TO_YARN', message
+
+def spark_yarn_handler(yarn_data):
+    '''
+    Handling Spark YARN data
+    '''
+    information = ''
+    aggregate_status = ''
+    yarnid = yarn_data['id']
+    if yarn_data['state'] == 'SUBMITTED' or yarn_data['state'] == 'ACCEPTED':
+        aggregate_status = yarn_data['state']
+        message = yarn_data['diagnostics'].split('Details :')[0].strip()
+        information = message
+    elif yarn_data['state'] == 'RUNNING':
+        spark_data = spark_job_handler(yarn_data['id'])
+        if spark_data['state'] == 'OK':
+            aggregate_status = 'RUNNING'
+        else:
+            aggregate_status = 'RUNNING_WITH_ERRORS'
+        information = spark_data['information']
+    elif yarn_data['finalStatus'] == 'SUCCEEDED':
+        aggregate_status = '%s_%s' % (yarn_data['state'], yarn_data['finalStatus'])
+    elif yarn_data['state'] == 'FINISHED' and (yarn_data['finalStatus'] == 'FAILED' or yarn_data['finalStatus'] == 'KILLED'):
+        aggregate_status = '%s_%s' % (yarn_data['state'], yarn_data['finalStatus'])
+        information = yarn_data['diagnostics']
+    elif yarn_data['finalStatus'] == 'FAILED' or yarn_data['finalStatus'] == 'KILLED':
+        aggregate_status = yarn_data['finalStatus']
+        information = yarn_data['diagnostics']
+    else:
+        aggregate_status = 'NOT_FOUND'
+        message = yarn_data.get('RemoteException', {'message': ['']}).\
+        get('message').split(':')
+        message[0] = ''
+        information = ''.join(message).strip()
+    return aggregate_status, yarnid, information
+
+def spark_application(job_name, application, component_name):
     """
     Handling SPARK Application
     """
     ret = {}
-    yarnid = ''
-    information = ''
+    check_in_service = False
+    (aggregate_status, yarnid, information) = ('', '', '')
+    status, timestamp = _HBASE.get_status_with_timestamp(application)
     yarn_data = check_in_yarn(job_name)
-    if yarn_data != None:
-        yarnid = yarn_data['id']
-        if yarn_data['state'] == 'SUBMITTED' or yarn_data['state'] == 'ACCEPTED':
-            aggregate_status = yarn_data['state']
-            message = yarn_data['diagnostics'].split('Details :')[0].strip()
-            information = message
-        elif yarn_data['state'] == 'RUNNING':
-            spark_data = spark_job_handler(yarn_data['id'])
-            if spark_data['state'] == 'OK':
-                aggregate_status = 'RUNNING'
-            else:
-                aggregate_status = 'RUNNING_WITH_ERRORS'
-            information = spark_data['information']
-        elif yarn_data['finalStatus'] == 'SUCCEEDED':
-            aggregate_status = '%s_%s' % (yarn_data['state'], yarn_data['finalStatus'])
-        elif yarn_data['state'] == 'FINISHED' and (yarn_data['finalStatus'] == 'FAILED' or yarn_data['finalStatus'] == 'KILLED'):
-            aggregate_status = '%s_%s' % (yarn_data['state'], yarn_data['finalStatus'])
-            information = yarn_data['diagnostics']
-        elif yarn_data['finalStatus'] == 'FAILED' or yarn_data['finalStatus'] == 'KILLED':
-            aggregate_status = yarn_data['finalStatus']
-            information = yarn_data['diagnostics']
+    if status == 'CREATED':
+        if yarn_data != None:
+            aggregate_status, yarnid, information = spark_yarn_handler(yarn_data)
         else:
-            aggregate_status = 'NOT_FOUND'
-            message = yarn_data.get('RemoteException', {'message': ['']}).\
-            get('message').split(':')
-            message[0] = ''
-            information = ''.join(message).strip()
+            aggregate_status = ApplicationState.CREATED
     else:
-        aggregate_status = ApplicationState.CREATED
+        if yarn_data != None:
+            if timestamp < yarn_data['startedTime']:
+                aggregate_status, yarnid, information = spark_yarn_handler(yarn_data)
+            else:
+                check_in_service = True
+        else:
+            check_in_service = True
+    if check_in_service:
+        aggregate_status, information = check_in_service_log(CONFIG['environment']['namespace'], application, component_name)
     ret = {
         'aggregate_status': aggregate_status,
         'yarnId': yarnid,
@@ -431,7 +474,8 @@ def get_json(component_list, queue_obj):
                     (component[application][component_name]['job_handle'])})
                 if 'sparkStreaming' in component_name:
                     ret[application].update({component_name: spark_application\
-                    (component[application][component_name]['component_job_name'])})
+                    (component[application][component_name]['component_job_name'], application,\
+                     component[application][component_name]['component_name'])})
     queue_obj.put([{process_name: ret}])
     logging.info('%s %s', 'Finished', process_name)
 

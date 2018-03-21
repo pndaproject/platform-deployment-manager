@@ -17,43 +17,42 @@ class AppplicationSummaryTests(unittest.TestCase):
         {'aggregate_status': 'RUNNING_WITH_ERRORS', 'yarnId': '1234'}})
         self.assertEqual(result, 'RUNNING_WITH_ERRORS')
 
-    @patch('application_summary.check_in_yarn')
     @patch('application_summary.spark_job_handler')
-    def test_spark_application(self, spark_job_patch, yarn_check_patch):
+    def test_spark_yarn_handler(self, spark_job_patch):
         """
         Tetsing Spark application
         """
         #Spark application in case of Killed
-        yarn_check_patch.return_value = {'id': 'application_1234', 'state': 'KILLED', 'finalStatus': 'KILLED', \
+        input_data = {'id': 'application_1234', 'state': 'KILLED', 'finalStatus': 'KILLED', \
         'diagnostics': 'Killed'}
-        result = application_summary.spark_application('app1-example-job')
-        self.assertEqual(result['aggregate_status'], '%s' % ('KILLED'))
+        result = application_summary.spark_yarn_handler(input_data)
+        self.assertEqual(result[0], '%s' % ('KILLED'))
 
         #Spark application in case of Failed
-        yarn_check_patch.return_value = {'id': 'application_1234', 'state': 'FINISHED', 'finalStatus': 'FAILED', \
+        input_data = {'id': 'application_1234', 'state': 'FINISHED', 'finalStatus': 'FAILED', \
         'diagnostics': 'Failed'}
-        result = application_summary.spark_application('app1-example-job')
-        self.assertEqual(result['aggregate_status'], '%s' % ('FINISHED_FAILED'))
+        result = application_summary.spark_yarn_handler(input_data)
+        self.assertEqual(result[0], '%s' % ('FINISHED_FAILED'))
 
         #Spark application in case of Running with No errors
-        yarn_check_patch.return_value = {'id': 'application_1234', 'state': 'RUNNING', \
+        input_data = {'id': 'application_1234', 'state': 'RUNNING', \
         'finalStatus': 'UNDEFINED'}
         spark_job_patch.return_value = {'state': 'OK', 'information': 'job_stage data'}
-        result = application_summary.spark_application('app1-example-job')
-        self.assertEqual(result['aggregate_status'], '%s' % ('RUNNING'))
+        result = application_summary.spark_yarn_handler(input_data)
+        self.assertEqual(result[0], '%s' % ('RUNNING'))
 
         #Spark application in case of Running with errors
-        yarn_check_patch.return_value = {'id': 'application_1234', 'state': 'RUNNING', \
+        input_data = {'id': 'application_1234', 'state': 'RUNNING', \
         'finalStatus': 'UNDEFINED'}
         spark_job_patch.return_value = {'state': 'ERROR', 'information': 'job_stage data'}
-        result = application_summary.spark_application('app1-example-job')
-        self.assertEqual(result['aggregate_status'], '%s' % ('RUNNING_WITH_ERRORS'))
+        result = application_summary.spark_yarn_handler(input_data)
+        self.assertEqual(result[0], '%s' % ('RUNNING_WITH_ERRORS'))
 
         #Spark application in other states than above states
-        yarn_check_patch.return_value = {'id': 'application_1234', 'state': 'ACCEPTED', \
+        input_data = {'id': 'application_1234', 'state': 'ACCEPTED', \
         'finalStatus': 'UNDEFINED', 'diagnostics': 'Accepted'}
-        result = application_summary.spark_application('app1-example-job')
-        self.assertEqual(result['aggregate_status'], '%s' % ('ACCEPTED'))
+        result = application_summary.spark_yarn_handler(input_data)
+        self.assertEqual(result[0], '%s' % ('ACCEPTED'))
 
     @patch('requests.get')
     def test_check_in_yarn(self, mock_req):
@@ -473,3 +472,14 @@ class AppplicationSummaryTests(unittest.TestCase):
             'type': 'UNKNOWN',
             'information': 'app with id application_123 not found'
         })
+
+# pylint: disable=C0301
+
+    @patch('platform.dist')
+    @patch('commands.getoutput')
+    def test_check_in_service_log(self, cmd_patch, distro_patch):
+        distro_patch.return_value = ['redhat']
+        cmd_patch.return_value = 'Mar 22 03:39:32 rhel-cdh-hadoop-edge spark-submit[2475]: 18/03/22 03:39:32 INFO yarn.Client: Uploading resource file:/opt/platform_app/s1/example/dataplatform-raw.avsc -> hdfs://rhel-cdh-hadoop-mgr-1:8020/user/pnda/.sparkStaging/application_1521689436801_0013/dataplatform-raw.avsc\nMar 22 03:39:32 rhel-cdh-hadoop-edge spark-submit[2475]: 18/03/22 03:39:32 INFO yarn.Client: Uploading resource file:/opt/platform_app/s1/example/avro-1.8.1-py2.7.egg -> hdfs://rhel-cdh-hadoop-mgr-1:8020/user/pnda/.sparkStaging/application_1521689436801_0013/avro-1.8.1-py2.7.egg\nMar 22 03:39:32 rhel-cdh-hadoop-edge spark-submit[2475]: 18/03/22 03:39:32 INFO yarn.Client: Deleting staging directory .sparkStaging/application_1521689436801_0013\nMar 22 03:39:32 rhel-cdh-hadoop-edge spark-submit[2475]: Exception in thread "main" java.io.FileNotFoundException: File file:/opt/platform_app/s1/example/avro-1.8.1-py2.7.egg does not exist\nMar 22 03:38:01 rhel-cdh-hadoop-edge spark-submit[31045]: at org.apache.hadoop.fs.RawLocalFileSystem.deprecatedGetFileStatus(RawLocalFileSystem.java:598)\nMar 22 03:38:01 rhel-cdh-hadoop-edge spark-submit[31045]: at org.apache.hadoop.fs.RawLocalFileSystem.getFileLinkStatusInternal(RawLocalFileSystem.java:811)\nMar 22 03:38:01 rhel-cdh-hadoop-edge spark-submit[31045]: at org.apache.hadoop.fs.RawLocalFileSystem.getFileStatus(RawLocalFileSystem.java:588)\nMar 22 03:38:01 rhel-cdh-hadoop-edge spark-submit[31045]: at org.apache.hadoop.fs.FilterFileSystem.getFileStatus(FilterFileSystem.java:425)\nMar 22 03:38:01 rhel-cdh-hadoop-edge spark-submit[31045]: at org.apache.hadoop.fs.FileUtil.copy(FileUtil.java:340)Mar 22 03:38:01 rhel-cdh-hadoop-edge spark-submit[31045]: at org.apache.hadoop.fs.FileUtil.copy(FileUtil.java:292)'
+        result = application_summary.check_in_service_log('platform_app', 'application_123', 'example')
+        self.assertEqual(result[0], 'FAILED_TO_SUBMIT_TO_YARN')
+        self.assertEqual(result[1], 'java.io.FileNotFoundException. More details: execute "journalctl -u platform_app-application_123-example"')

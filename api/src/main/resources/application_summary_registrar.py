@@ -82,6 +82,18 @@ class HBaseAppplicationSummary(object):
             connection.close()
         return data
 
+    def get_status_with_timestamp(self, key):
+        try:
+            connection = happybase.Connection(self._hbase_host)
+            table = connection.table("platform_applications")
+            row = table.row(key, columns=['cf:status'], include_timestamp=True)
+            status, timestamp = row['cf:status']
+        except TTransportException as error_message:
+            logging.error(str(error_message))
+        finally:
+            connection.close()
+        return status, timestamp
+
     def get_summary_data(self, application):
         record = {application: {}}
         dm_data = self.get_dm_data(application)
