@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - PNDA-4218: Fix application deletion when app name is an HDFS username
+- PNDA-4012: Add missing application type in application detailed summary
+- PNDA-4009: Improve application status naming in application detailed summary
 
 ## [1.0.0] 2018-02-10
 ### Added:
