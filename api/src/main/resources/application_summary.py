@@ -288,6 +288,7 @@ def oozie_coordinator_handler(data):
         aggregate_status = process_component_data(oozie_data)
         coord_status.update({'actions': oozie_data, 'status': aggregate_status, 'aggregate_status': 'COMPLETED_WITH_FAILURES', \
         'oozieId': data['coordJobId'], 'name': data['coordJobName']})
+    coord_status.update({"componentType": "Oozie"})
     return coord_status
 
 def oozie_workflow_handler(data):
@@ -326,6 +327,7 @@ def oozie_workflow_handler(data):
         aggregate_status = process_component_data(oozie_data)
         workflow_status.update({'actions': oozie_data, 'aggregate_status': 'COMPLETED_WITH_FAILURES', \
         'oozieId': data['id'], 'name': data['appName'], 'status': aggregate_status})
+    workflow_status.update({"componentType": "Oozie"})
     return workflow_status
 
 def oozie_application(job_handle):
@@ -409,6 +411,7 @@ def spark_application(job_name):
         'information': information,
         'name': job_name
     }
+    ret.update({"componentType": "SparkStreaming"})
     return ret
 
 def get_json(component_list, queue_obj):
