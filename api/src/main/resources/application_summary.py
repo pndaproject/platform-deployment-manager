@@ -20,9 +20,6 @@ _MAX_PROCESS_COUNT = 4
 _MAX_TIME_BOUND = 60
 _MAX_PROCESS_TIME = 6
 COMPONENT_STATUS = dict([("green", "OK"), ("amber", "WARN"), ("red", "ERROR")])
-ERROR_STATUS = dict([("OK", "WITH_NO_ERRORS"), ("ERROR", "WITH_ERRORS"), ("WARN", "WITH_ERRORS")])
-FAILURE_STATUS = dict([("OK", "WITH_NO_FAILURES"), ("ERROR", "WITH_FAILURES"), \
-("WARN", "WITH_FAILURES")])
 
 # pylint: disable=R0204
 def spark_job_handler(app_id):
@@ -40,7 +37,7 @@ def spark_job_handler(app_id):
             spark_jobs = json.loads(spark_jobs.text)
             if spark_jobs:
                 information = {}
-                job_count = len(spark_jobs)
+                job_count = spark_jobs[0]['jobId'] + 1
                 job_suc_c, job_unknown_c, job_fail_c, job_run_c = (0, 0, 0, 0)
                 for ele in spark_jobs:
                     if ele['status'] == 'RUNNING':
@@ -55,7 +52,7 @@ def spark_job_handler(app_id):
                 app_id, '/api/v1/applications/', app_id, '/stages')
                 spark_stages = requests.get(url)
                 spark_stages = json.loads(spark_stages.text)
-                stage_count = len(spark_stages)
+                stage_count = spark_stages[0]['stageId'] + 1
                 stage_complete_c, stage_active_c, stage_pending_c, stage_failed_c = (0, 0, 0, 0)
                 for ele in spark_stages:
                     if ele['status'] == 'COMPLETE':
@@ -143,7 +140,7 @@ def find_workflow_type(actions):
 
 # pylint: disable=R0101
 
-def get_oozie_workflow_actions(actions):
+def oozie_action_handler(actions):
     """
     Handling OOZIE actions both Workflow and Coordinator
     """
@@ -197,7 +194,7 @@ def get_oozie_workflow_actions(actions):
                 key = '%s-%d' % (type_name, count)
                 count += 1
                 oozie_info = oozie_api_request(action['externalId'])
-                oozie_data = get_oozie_workflow_actions(oozie_info['actions'])
+                oozie_data = oozie_action_handler(oozie_info['actions'])
                 workflowstatus = process_component_data(oozie_data)
                 if action['status'] == 'ERROR' or action['status'] == 'FAILED' \
                 or action['status'] == 'KILLED':
@@ -259,27 +256,37 @@ def oozie_coordinator_handler(data):
     coord_status = {}
     if data['status'] == 'PREPSUSPENDED':
         coord_status.update({'aggregate_status': ApplicationState.CREATED, \
-        'name': data['coordJobName']})
+        'oozieId': data['coordJobId'], 'name': data['coordJobName']})
     elif data['status'] == 'PREP':
         coord_status.update({'aggregate_status': ApplicationState.STARTING, \
-        'name': data['coordJobName']})
+        'oozieId': data['coordJobId'], 'name': data['coordJobName']})
     elif data['status'] == 'RUNNING':
-        oozie_data = get_oozie_workflow_actions(data['actions'])
+        oozie_data = oozie_action_handler(data['actions'])
         aggregate_status = process_component_data(oozie_data)
-        coord_status.update({'actions': oozie_data, 'status': aggregate_status, 'aggregate_status':\
-        '%s_%s_%s' % (ApplicationState.STARTED, 'RUNNING', ERROR_STATUS[aggregate_status]), \
+        if aggregate_status == 'OK':
+            status = 'RUNNING'
+        else:
+            status = 'RUNNING_WITH_ERRORS'
+        coord_status.update({'actions': oozie_data, 'status': aggregate_status, 'aggregate_status':status, \
         'oozieId': data['coordJobId'], 'name': data['coordJobName']})
-    elif data['status'] == 'SUSPENDED':
-        oozie_data = get_oozie_workflow_actions(data['actions'])
+    elif data['status'] == 'SUSPENDED' or data['status'] == 'KILLED':
+        oozie_data = oozie_action_handler(data['actions'])
         aggregate_status = process_component_data(oozie_data)
-        coord_status.update({'actions': oozie_data, 'status': aggregate_status, 'aggregate_status':\
-        '%s_%s_%s' % (ApplicationState.COMPLETED, 'SUSPENDED', FAILURE_STATUS[aggregate_status]), \
+        if aggregate_status == 'OK':
+            status = '%s' % (data['status'])
+        else:
+            status = '%s_%s' % (data['status'], 'WITH_FAILURES')
+        coord_status.update({'actions': oozie_data, 'status': aggregate_status, 'aggregate_status': status, \
         'oozieId': data['coordJobId'], 'name': data['coordJobName']})
-    elif data['status'] == 'KILLED':
-        oozie_data = get_oozie_workflow_actions(data['actions'])
+    elif data['status'] == 'SUCCEEDED':
+        oozie_data = oozie_action_handler(data['actions'])
         aggregate_status = process_component_data(oozie_data)
-        coord_status.update({'actions': oozie_data, 'status': aggregate_status, 'aggregate_status':\
-        '%s_%s_%s' % (ApplicationState.COMPLETED, 'KILLED', FAILURE_STATUS[aggregate_status]), \
+        coord_status.update({'actions': oozie_data, 'status': aggregate_status, 'aggregate_status': 'COMPLETED', \
+        'oozieId': data['coordJobId'], 'name': data['coordJobName']})
+    elif data['status'] == 'DONEWITHERROR':
+        oozie_data = oozie_action_handler(data['actions'])
+        aggregate_status = process_component_data(oozie_data)
+        coord_status.update({'actions': oozie_data, 'status': aggregate_status, 'aggregate_status': 'COMPLETED_WITH_FAILURES', \
         'oozieId': data['coordJobId'], 'name': data['coordJobName']})
     coord_status.update({"componentType": "Oozie"})
     return coord_status
@@ -291,24 +298,34 @@ def oozie_workflow_handler(data):
     workflow_status = {}
     if data['status'] == 'PREP':
         workflow_status.update({'aggregate_status': ApplicationState.CREATED, \
-        'name': data['appName']})
+        'oozieId': data['id'], 'name': data['appName']})
     elif data['status'] == 'RUNNING':
-        oozie_data = get_oozie_workflow_actions(data['actions'])
+        oozie_data = oozie_action_handler(data['actions'])
         aggregate_status = process_component_data(oozie_data)
-        workflow_status.update({'actions': oozie_data, 'aggregate_status': '%s_%s_%s' % \
-        (ApplicationState.STARTED, 'RUNNING', ERROR_STATUS[aggregate_status]), \
+        if aggregate_status == 'OK':
+            status = 'RUNNING'
+        else:
+            status = 'RUNNING_WITH_ERRORS'
+        workflow_status.update({'actions': oozie_data, 'aggregate_status': status, \
         'oozieId': data['id'], 'name': data['appName'], 'status': aggregate_status})
-    elif data['status'] == 'SUSPENDED':
-        oozie_data = get_oozie_workflow_actions(data['actions'])
+    elif data['status'] == 'SUSPENDED' or data['status'] == 'KILLED':
+        oozie_data = oozie_action_handler(data['actions'])
         aggregate_status = process_component_data(oozie_data)
-        workflow_status.update({'actions': oozie_data, 'aggregate_status': '%s_%s_%s' % \
-        (ApplicationState.COMPLETED, 'SUSPENDED', FAILURE_STATUS[aggregate_status]), \
+        if aggregate_status == 'OK':
+            status = '%s' % (data['status'])
+        else:
+            status = '%s_%s' % (data['status'], 'WITH_FAILURES')
+        workflow_status.update({'actions': oozie_data, 'aggregate_status': status, \
         'oozieId': data['id'], 'name': data['appName'], 'status': aggregate_status})
-    elif data['status'] == 'KILLED':
-        oozie_data = get_oozie_workflow_actions(data['actions'])
+    elif data['status'] == 'SUCCEEDED':
+        oozie_data = oozie_action_handler(data['actions'])
         aggregate_status = process_component_data(oozie_data)
-        workflow_status.update({'actions': oozie_data, 'aggregate_status': '%s_%s_%s' % \
-        (ApplicationState.COMPLETED, 'KILLED', FAILURE_STATUS[aggregate_status]), \
+        workflow_status.update({'actions': oozie_data, 'aggregate_status': 'COMPLETED', \
+        'oozieId': data['id'], 'name': data['appName'], 'status': aggregate_status})
+    elif data['status'] == 'DONEWITHERROR':
+        oozie_data = oozie_action_handler(data['actions'])
+        aggregate_status = process_component_data(oozie_data)
+        workflow_status.update({'actions': oozie_data, 'aggregate_status': 'COMPLETED_WITH_FAILURES', \
         'oozieId': data['id'], 'name': data['appName'], 'status': aggregate_status})
     workflow_status.update({"componentType": "Oozie"})
     return workflow_status
@@ -355,47 +372,45 @@ def spark_application(job_name):
     """
     Handling SPARK Application
     """
-    new_app_flag = False
     ret = {}
-    information = None
-    app_id = check_in_yarn(job_name)
-    if app_id != None:
-        yarn_data = yarn_info(app_id['id'])
-        if yarn_data['yarnFinalStatus'] == 'FAILED':
-            aggregate_status = '%s_%s_%s' % (ApplicationState.COMPLETED, \
-            'FAILED', FAILURE_STATUS['ERROR'])
-        elif yarn_data['yarnFinalStatus'] == 'KILLED':
-            aggregate_status = '%s_%s_%s' % (ApplicationState.COMPLETED, \
-            'KILLED', FAILURE_STATUS['OK'])
-        elif yarn_data['yarnStatus'] == 'RUNNING':
-            spark_data = spark_job_handler(app_id['id'])
-            aggregate_status = '%s_%s_%s' % (ApplicationState.STARTED, \
-            yarn_data['yarnStatus'], ERROR_STATUS[spark_data['state']])
+    yarnid = ''
+    information = ''
+    yarn_data = check_in_yarn(job_name)
+    if yarn_data != None:
+        yarnid = yarn_data['id']
+        if yarn_data['state'] == 'SUBMITTED' or yarn_data['state'] == 'ACCEPTED':
+            aggregate_status = yarn_data['state']
+            message = yarn_data['diagnostics'].split('Details :')[0].strip()
+            information = message
+        elif yarn_data['state'] == 'RUNNING':
+            spark_data = spark_job_handler(yarn_data['id'])
+            if spark_data['state'] == 'OK':
+                aggregate_status = 'RUNNING'
+            else:
+                aggregate_status = 'RUNNING_WITH_ERRORS'
             information = spark_data['information']
-        elif yarn_data['yarnStatus'] == 'FINISHED' and yarn_data['yarnFinalStatus'] == 'SUCCEEDED':
-            aggregate_status = '%s_%s_%s' % (ApplicationState.COMPLETED, \
-            yarn_data['yarnStatus'], ERROR_STATUS['OK'])
-        elif yarn_data['yarnStatus'] == 'NOT FOUND':
-            aggregate_status = '%s_%s_%s' % (ApplicationState.COMPLETED, \
-            yarn_data['yarnStatus'], ERROR_STATUS['ERROR'])
-            information = yarn_data['information']
+        elif yarn_data['finalStatus'] == 'SUCCEEDED':
+            aggregate_status = '%s_%s' % (yarn_data['state'], yarn_data['finalStatus'])
+        elif yarn_data['state'] == 'FINISHED' and (yarn_data['finalStatus'] == 'FAILED' or yarn_data['finalStatus'] == 'KILLED'):
+            aggregate_status = '%s_%s' % (yarn_data['state'], yarn_data['finalStatus'])
+            information = yarn_data['diagnostics']
+        elif yarn_data['finalStatus'] == 'FAILED' or yarn_data['finalStatus'] == 'KILLED':
+            aggregate_status = yarn_data['finalStatus']
+            information = yarn_data['diagnostics']
         else:
-            aggregate_status = '%s_%s_%s' % (ApplicationState.STARTED, \
-            yarn_data['yarnStatus'], ERROR_STATUS['OK'])
-        ret = {
-            'aggregate_status': aggregate_status,
-            'yarnId': app_id['id'],
-            'information': information,
-            'name': job_name
-        }
+            aggregate_status = 'NOT_FOUND'
+            message = yarn_data.get('RemoteException', {'message': ['']}).\
+            get('message').split(':')
+            message[0] = ''
+            information = ''.join(message).strip()
     else:
-        new_app_flag = True
-    if new_app_flag:
-        ret = {
-            'aggregate_status': ApplicationState.CREATED,
-            'information': information,
-            'name': job_name
-        }
+        aggregate_status = ApplicationState.CREATED
+    ret = {
+        'aggregate_status': aggregate_status,
+        'yarnId': yarnid,
+        'information': information,
+        'name': job_name
+    }
     ret.update({"componentType": "SparkStreaming"})
     return ret
 
@@ -480,45 +495,41 @@ def process_application_data(application):
     """
     Find Application level aggregated status based on it's component's status
     """
-    (current_agg_status_priority, current_error_status_priority, \
-    current_failure_status_priority) = (99, 99, 99)
-    aggregated_status_priority = dict([(ApplicationState.CREATED, 1), \
-    (ApplicationState.STARTING, 2), (ApplicationState.STARTED, 3), (ApplicationState.COMPLETED, 4)])
-    error_status_priority = dict([('ERRORS', 1), ('NO_ERRORS', 2)])
-    failure_status_priority = dict([('FAILURES', 1), ('NO_FAILURES', 2)])
+    aggregated_status_priority = dict([(1, ApplicationState.CREATED), \
+    (2, ApplicationState.STARTING), (3, "RUNNING"), (4, 'RUNNING_WITH_ERRORS'), \
+    (5, 'STOPPED'), (6, 'STOPPED_WITH_FAILURES'), (7, 'KILLED'), (8, 'KILLED_WITH_FAILURES'), \
+    (9, 'COMPLETED'), (10, 'COMPLETED_WITH_FAILURES'), (11, 'NOT_FOUND')])
+    current_agg_status_priority = 99
     for component in application:
-        if current_agg_status_priority >= aggregated_status_priority[application[component]\
-        ['aggregate_status'].split('_')[0]]:
-            current_agg_status_priority = aggregated_status_priority[application[component]\
-            ['aggregate_status'].split('_')[0]]
-        temp = application[component]['aggregate_status'].split('WITH_')[-1]
-        if 'ERRORS' in temp:
-            if current_error_status_priority >= error_status_priority[temp]:
-                current_error_status_priority = error_status_priority[temp]
-        if 'FAILURES' in temp:
-            if current_failure_status_priority >= failure_status_priority[temp]:
-                current_failure_status_priority = failure_status_priority[temp]
-
-    if current_agg_status_priority == 3:
-        if current_error_status_priority == 2:
-            if current_failure_status_priority == 1:
-                error_status = 'ERRORS'
-            else:
-                error_status = 'NO_ERRORS'
+        temp_comp_status = application[component].get('aggregate_status', '')
+        temp_status_priority = 0
+        if temp_comp_status == 'CREATED':
+            temp_status_priority = 1
+        elif temp_comp_status == 'STARTING' or temp_comp_status == 'SUBMITTED' \
+            or temp_comp_status == 'ACCEPTED':
+            temp_status_priority = 2
+        elif temp_comp_status == 'RUNNING':
+            temp_status_priority = 3
+        elif temp_comp_status == 'RUNNING_WITH_ERRORS':
+            temp_status_priority = 4
+        elif temp_comp_status == 'SUSPENDED':
+            temp_status_priority = 5
+        elif temp_comp_status == 'SUSPENDED_WITH_FAILURES':
+            temp_status_priority = 6
+        elif temp_comp_status == 'KILLED' or temp_comp_status == 'FINISHED_KILLED':
+            temp_status_priority = 7
+        elif temp_comp_status == 'KILLED_WITH_FAILURES':
+            temp_status_priority = 8
+        elif temp_comp_status == 'COMPLETED' or temp_comp_status == 'FINISHED_SUCCEEDED':
+            temp_status_priority = 9
+        elif temp_comp_status == 'COMPLETED_WITH_FAILURES' or temp_comp_status == 'FAILED' \
+            or temp_comp_status == 'FINISHED_FAILED':
+            temp_status_priority = 10
         else:
-            error_status = 'ERRORS'
-        aggregated_status = '%s_%s_WITH_%s' % (ApplicationState.STARTED, 'RUNNING', error_status)
-    elif current_agg_status_priority == 4:
-        if current_failure_status_priority == 1:
-            failure_status = 'FAILURES'
-        else:
-            failure_status = 'NO_FAILURES'
-        aggregated_status = '%s_WITH_%s' % (ApplicationState.COMPLETED, failure_status)
-    elif current_agg_status_priority == 1:
-        aggregated_status = ApplicationState.CREATED
-    else:
-        aggregated_status = ApplicationState.STARTING
-    return aggregated_status
+            temp_status_priority = 11
+        if temp_status_priority < current_agg_status_priority:
+            current_agg_status_priority = temp_status_priority
+    return aggregated_status_priority[current_agg_status_priority]
 
 def application_summary(app_list):
     """

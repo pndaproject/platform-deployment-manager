@@ -213,7 +213,7 @@ def fill_hadoop_env_cdh(env):
                 if not nameservice and role.type == "NAMENODE":
                     env['name_node'] = 'hdfs://%s:8020' % api.get_host(role.hostRef.hostId).hostname
                 if role.type == "HTTPFS":
-                    env['webhdfs_host'] = '%s' % api.get_host(role.hostRef.hostId).ipAddress
+                    env['webhdfs_host'] = '%s' % api.get_host(role.hostRef.hostId).hostname
                     env['webhdfs_port'] = '14000'
         elif service.type == "YARN":
             for role in service.get_all_roles():

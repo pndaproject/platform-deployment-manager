@@ -40,6 +40,10 @@ class SparkStreamingCreator(Creator):
             errors.append('missing file application.properties')
         if 'log4j.properties' not in file_list:
             errors.append('missing file log4j.properties')
+        if 'upstart.conf' in file_list:
+            errors.append('Support for user supplied upstart.conf files has been deprecated, ' +
+                          'the deployment manager will supply one automatically. ' +
+                          'Please see PNDA example-applications for usage.')
         return errors
 
     def get_component_type(self):
@@ -85,9 +89,10 @@ class SparkStreamingCreator(Creator):
             properties['component_py_files'] = ''
 
         if 'upstart.conf' in component['component_detail']:
-            # old style applications for backward compatibility
-            service_script = 'upstart.conf'
-            service_script_install_path = '/etc/init/%s.conf' % service_name
+            # old style applications - reject these
+            raise Exception('Support for user supplied upstart.conf files has been deprecated, ' +
+                             'the deployment manager will supply one automatically. ' +
+                             'Please see PNDA example-applications for usage.')
         else:
             # new style applications that don't need to provide upstart.conf or yarn-kill.py
             if 'component_main_jar' in properties and 'component_main_class' not in properties:

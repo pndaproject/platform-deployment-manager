@@ -22,11 +22,14 @@ either express or implied.
 
 # pylint: disable=C0103
 
+import os
 import json
 import logging
 import datetime
 import xml.etree.ElementTree as ElementTree
 import commands
+import shutil
+import traceback
 import requests
 
 import deployer_utils
@@ -111,41 +114,28 @@ class OozieCreator(Creator):
         properties[def_path] = '%s/%s' % (self._environment['name_node'], remote_path)
 
         # deploy everything to various hadoop services
-        undeploy = self._deploy_to_hadoop(properties, staged_component_path, remote_path, properties['application_user'])
+        undeploy = self._deploy_to_hadoop(component, properties, staged_component_path, remote_path, properties['application_user'])
 
         # return something that can be used to undeploy later
         return {'job_handle': undeploy['id'],
                 'component_hdfs_root': properties['component_hdfs_root'],
                 'application_user': properties['application_user']}
 
-    def _deploy_to_hadoop(self, properties, staged_component_path, remote_path, application_user, exclude=None):
-        if exclude is None:
-            exclude = []
-        exclude.extend(['hdfs.json',
-                        'hbase.json',
-                        'properties.json',
-                        'application.properties'])
-
-        # stage the component files to hdfs
-        self._hdfs_client.recursive_copy(staged_component_path, remote_path, exclude=exclude, permission=755)
-
-        # stage the instantiated job properties back to HDFS - no functional purpose,
-        # just helps developers understand what has happened
-        effective_job_properties = deployer_utils.dict_to_props(properties)
-        self._hdfs_client.create_file(effective_job_properties, '%s/application.properties' % remote_path)
-
+    def _setup_queue_config(self, component, staged_component_path, properties):
         # Add queue config into the default config if none is defined.
         if 'mapreduce.job.queuename' in properties:
             defaults = {'mapreduce.job.queuename':properties['mapreduce.job.queuename']}
             try:
-                data = self._hdfs_client.read_file('%s/config-default.xml' % remote_path)
+                with open('%s/config-default.xml' % staged_component_path, 'r') as config_default_file:
+                    data = config_default_file.read()
             except:
                 logging.debug('No config-default.xml is detected.')
                 data = None
 
             if data is None:
                 logging.debug('Creating config-default.xml to inject mapreduce.job.queuename property.')
-                self._hdfs_client.create_file(deployer_utils.dict_to_xml(defaults), '%s/config-default.xml' % remote_path)
+                with open('%s/config-default.xml' % staged_component_path, 'w') as config_default_file:
+                    config_default_file.write(deployer_utils.dict_to_xml(defaults))
             else:
                 prop = None
                 root = None
@@ -167,10 +157,76 @@ class OozieCreator(Creator):
                         logging.debug('adding mapred.queue.names in config-default.xml')
                         prop = ElementTree.SubElement(root, 'property')
                         ElementTree.SubElement(prop, 'name').text = 'mapreduce.job.queuename'
-                        ElementTree.SubElement(prop, 'value').text = 'dev'
+                        ElementTree.SubElement(prop, 'value').text = properties['mapreduce.job.queuename']
                         data = ElementTree.tostring(root)
-                        self._hdfs_client.remove('%s/config-default.xml' % remote_path)
-                        self._hdfs_client.create_file(data, '%s/config-default.xml' % remote_path)
+                        with open('%s/config-default.xml' % staged_component_path, 'w') as config_default_file:
+                            config_default_file.write(data)
+
+            file_list = [file_name for file_name in component['component_detail'] if os.path.isfile('%s/%s' % (staged_component_path, file_name))]
+            # find workflow.xml files
+            for afile in file_list:
+                workflow_modified = False
+                file_path = '%s/%s' % (staged_component_path, afile)
+                with open(file_path, 'r') as component_file:
+                    workflow_xml = component_file.read()
+                    if 'uri:oozie:workflow' not in workflow_xml:
+                        continue
+                logging.debug("Found workflow file %s", file_path)
+                # copy config-default.xml into this directory
+                if os.path.dirname(file_path) != staged_component_path:
+                    shutil.copyfile('%s/config-default.xml' % staged_component_path, '%s/config-default.xml' % os.path.dirname(file_path))
+
+                # set the spark opts --queue so spark jobs are put in the right queue
+                spark_action_index = 0
+                while spark_action_index >= 0:
+                    spark_action_index = workflow_xml.find('<spark ', spark_action_index+1)
+                    spark_end_index = workflow_xml.find('</spark>', spark_action_index)
+                    jar_end_index = workflow_xml.find('</jar>', spark_action_index, spark_end_index)
+                    opts_index = workflow_xml.find('<spark-opts>', spark_action_index, spark_end_index)
+                    opts_end_index = workflow_xml.find('</spark-opts>', opts_index, spark_end_index)
+                    queue_opt_index = workflow_xml.find('--queue ', opts_index, opts_end_index)
+                    if jar_end_index >= 0:
+                        if opts_index < 0:
+                            # we need to add a spark-opts element
+                            split_index = jar_end_index+len('</jar>')
+                            workflow_xml = '%s%s%s' % (workflow_xml[:split_index],
+                                                       '<spark-opts>--queue ${wf:conf("mapreduce.job.queuename")}</spark-opts>',
+                                                       workflow_xml[split_index:])
+                            workflow_modified = True
+                        elif queue_opt_index < 0:
+                            # we need to add a queue opt to the existing spark-opts element
+                            split_index = opts_end_index
+                            workflow_xml = '%s%s%s' % (workflow_xml[:split_index], ' --queue ${wf:conf("mapreduce.job.queuename")}', workflow_xml[split_index:])
+                            workflow_modified = True
+
+                # write out modified workflow if changes were made
+                if workflow_modified:
+                    logging.debug("Writing out modified workflow xml to %s", file_path)
+                    with open(file_path, "w") as workflow_file:
+                        workflow_file.write(workflow_xml)
+
+    def _deploy_to_hadoop(self, component, properties, staged_component_path, remote_path, application_user, exclude=None):
+        if exclude is None:
+            exclude = []
+        exclude.extend(['hdfs.json',
+                        'hbase.json',
+                        'properties.json',
+                        'application.properties'])
+
+        # setup queue config
+        try:
+            self._setup_queue_config(component, staged_component_path, properties)
+        except Exception as ex:
+            logging.error(traceback.format_exc())
+            raise FailedCreation('Failed to set up yarn queue config: %s' % str(ex))
+
+        # stage the component files to hdfs
+        self._hdfs_client.recursive_copy(staged_component_path, remote_path, exclude=exclude, permission=755)
+
+        # stage the instantiated job properties back to HDFS - no functional purpose,
+        # just helps developers understand what has happened
+        effective_job_properties = deployer_utils.dict_to_props(properties)
+        self._hdfs_client.create_file(effective_job_properties, '%s/application.properties' % remote_path)
 
         # submit to oozie
         result = self._submit_oozie(properties)
