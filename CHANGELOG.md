@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - PNDA-4405: Require user and package fields in create application API
 - PNDA-4389: Reject packages containing upstart.conf files
+- PNDA-4525: Deprecate Ubuntu 14.04
 
 ### Fixed
 - PNDA-4218: Fix application deletion when app name is an HDFS username
