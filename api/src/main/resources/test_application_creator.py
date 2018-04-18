@@ -193,7 +193,7 @@ class ApplicationCreatorTests(unittest.TestCase):
                 return {'id': 'someid'}
 
         post_mock.return_value = Resp()
-        dist_mock.return_value = 'ubuntu'
+        dist_mock.return_value = 'redhat'
         cmd_mock.return_value = (0, 'dev')
         with patch("__builtin__.open", mock_open(read_data="[]")):
             creator = ApplicationCreator(self.config, self.environment, self.service)
@@ -211,7 +211,7 @@ class ApplicationCreatorTests(unittest.TestCase):
         exec_ssh_mock.assert_any_call('nm1', 'root_user', 'keyfile.pem', ['sudo mkdir -p /opt/ns/aname/componentC', 'sudo mv /tmp/ns/aname/componentC/log4j.properties /opt/ns/aname/componentC/log4j.properties'])
         exec_ssh_mock.assert_any_call('nm2', 'root_user', 'keyfile.pem', ['mkdir -p /tmp/ns/aname/componentC'])
         exec_ssh_mock.assert_any_call('nm2', 'root_user', 'keyfile.pem', ['sudo mkdir -p /opt/ns/aname/componentC', 'sudo mv /tmp/ns/aname/componentC/log4j.properties /opt/ns/aname/componentC/log4j.properties'])
-        exec_ssh_mock.assert_any_call('localhost', 'root_user', 'keyfile.pem', ['sudo cp /tmp/ns/aname/componentC/upstart.conf.tpl /etc/init/ns-aname-componentC.conf', 'sudo cp /tmp/ns/aname/componentC/* /opt/ns/aname/componentC', 'sudo chmod a+x /opt/ns/aname/componentC/yarn-kill.py', 'cd /opt/ns/aname/componentC && sudo jar uf abc.jar application.properties', 'sudo rm -rf /tmp/ns/aname/componentC'])
+        exec_ssh_mock.assert_any_call('localhost', 'root_user', 'keyfile.pem', ['sudo cp /tmp/ns/aname/componentC/systemd.service.tpl /usr/lib/systemd/system/ns-aname-componentC.service', 'sudo cp /tmp/ns/aname/componentC/* /opt/ns/aname/componentC', 'sudo chmod a+x /opt/ns/aname/componentC/yarn-kill.py', 'cd /opt/ns/aname/componentC && sudo jar uf abc.jar application.properties', 'sudo rm -rf /tmp/ns/aname/componentC'])
 
     @patch('starbase.Connection')
     @patch('pyhs2.connect')
