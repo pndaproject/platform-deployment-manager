@@ -28,10 +28,10 @@ import traceback
 import time
 from threading import Thread
 
+import requests
 import spur
 from pywebhdfs.webhdfs import PyWebHdfsClient
 
-import requests
 from cm_api.api_client import ApiResource
 
 
@@ -115,7 +115,7 @@ def get_hdfs_hdp(ambari, cluster_name):
 def component_host(component_detail):
     host_list = ''
     for host_detail in component_detail['host_components']:
-        if len(host_list) > 0:
+        if host_list:
             host_list += ','
         host_list += host_detail['HostRoles']['host_name']
     return host_list
@@ -193,7 +193,7 @@ def fill_hadoop_env_cdh(env):
         cluster_name = cluster_detail.name
         break
 
-    logging.debug('getting ' + cluster_name)
+    logging.debug('getting %s', cluster_name)
     env['cm_status_links'] = {}
     env.pop('yarn_node_managers', None)
     env.pop('yarn_resource_manager_host', None)

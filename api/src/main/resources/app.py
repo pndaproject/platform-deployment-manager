@@ -22,7 +22,6 @@ either express or implied.
 import sys
 import json
 import logging
-from tornado_cors import CorsMixin
 
 import tornado.httpserver
 import tornado.options
@@ -30,6 +29,7 @@ import tornado.web
 from tornado.ioloop import IOLoop
 from tornado.web import asynchronous
 from tornado.options import define, options
+from tornado_cors import CorsMixin
 
 import package_registrar
 import application_registrar

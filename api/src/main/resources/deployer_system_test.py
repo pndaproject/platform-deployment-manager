@@ -320,7 +320,7 @@ class DeployerRestClientTester(object):
             retries_performed += 1
             if retries_performed > 60:
                 raise Exception("Exceeded retry limit, Is something wrong?")
-            logging.debug("Retry #" + str(retries_performed))
+            logging.debug("Retry #%s", str(retries_performed))
 
     def test_create_application(self, test_package, test_application):
         logging.debug("Creating test application...")
@@ -382,7 +382,7 @@ class DeployerRestClientTester(object):
             retries_performed += 1
             if retries_performed > 60:
                 raise Exception("Exceeded retry limit, Is something wrong?")
-            logging.debug("Retry #" + str(retries_performed))
+            logging.debug("Retry #%s", str(retries_performed))
 
     def await_package_status(self, package_name, expected, legal_values):
         """
@@ -399,7 +399,7 @@ class DeployerRestClientTester(object):
             retries_performed += 1
             if retries_performed > 60:
                 raise Exception("Exceeded retry limit, Is something wrong?")
-            logging.debug("Retry #" + str(retries_performed))
+            logging.debug("Retry #%s", str(retries_performed))
 
     def find_a_test_package(self):
         """

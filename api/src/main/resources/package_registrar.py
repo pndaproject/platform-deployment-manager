@@ -97,7 +97,7 @@ class HbasePackageRegistrar(object):
     def get_package_data(self, package_name):
         logging.debug("Reading %s", package_name)
         record = self._read_from_db(package_name, ['cf:package_data'])
-        if len(record) == 0:
+        if not record:
             return None
         local_package_path = "%s/%s" % (self._package_local_dir_path, package_name)
         self._read_from_hdfs(record['cf:package_data'], local_package_path)
@@ -107,7 +107,7 @@ class HbasePackageRegistrar(object):
         logging.debug("Reading %s", package_name)
         package_data = self._read_from_db(
             package_name, ['cf:metadata', 'cf:name', 'cf:version'])
-        if len(package_data) == 0:
+        if not package_data:
             return None
         return {"metadata": json.loads(package_data["cf:metadata"]), "name": package_data[
             "cf:name"], "version": package_data["cf:version"]}
@@ -124,7 +124,7 @@ class HbasePackageRegistrar(object):
         """
         logging.debug("Checking %s", package_name)
         package_data = self._read_from_db(package_name, columns=[self.COLUMN_DEPLOY_STATUS])
-        if len(package_data) == 0:
+        if not package_data:
             return None
         # all status is stored as json, so parse it and return it
         deploy_status_as_string = package_data[self.COLUMN_DEPLOY_STATUS]
@@ -138,8 +138,8 @@ class HbasePackageRegistrar(object):
             connection = happybase.Connection(self._hbase_host)
             table = connection.table(self._table_name)
             result = [key for key, _ in table.scan(columns=['cf:name'])]
-        except Exception as e:
-            logging.debug(str(e))
+        except Exception as exc:
+            logging.debug(str(exc))
             raise FailedConnection('Unable to connect to the HBase master')
         finally:
             if connection:

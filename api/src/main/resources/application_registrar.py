@@ -72,7 +72,7 @@ class HbaseApplicationRegistrar(object):
     def get_application(self, application_name):
         logging.debug("Reading %s", application_name)
         application_data = self._read_from_db(application_name)
-        if len(application_data) == 0:
+        if not application_data:
             return None
         return {'overrides': json.loads(application_data['cf:overrides']),
                 'defaults': json.loads(application_data['cf:defaults']),
@@ -84,7 +84,7 @@ class HbaseApplicationRegistrar(object):
     def application_exists(self, application_name):
         logging.debug("Checking %s", application_name)
         application_data = self._read_from_db(application_name)
-        if len(application_data) == 0:
+        if not application_data:
             return False
         # Note: this last line is problematic, as with the current API:
         # a "NOTCREATED" app can have an error state in the db

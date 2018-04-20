@@ -65,5 +65,3 @@ class FailedConnection(DmException):
     def __init__(self, arg):
         super(FailedConnection, self).__init__(arg)
         self.msg = arg
-
-
