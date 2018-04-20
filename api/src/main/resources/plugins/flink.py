@@ -134,4 +134,3 @@ class FlinkCreator(Common):
         logging.debug("stop commands: %s", stop_commands)
 
         return {'ssh': undo_commands, 'start_cmds': start_commands, 'stop_cmds': stop_commands}
-

@@ -87,7 +87,7 @@ class ApplicationCreator(object):
         for component_type, component_create_data in application_create_data.iteritems():
             creator = self._load_creator(component_type)
             creator.destroy_components(application_name, component_create_data)
-            if len(component_create_data) > 0 and 'application_hdfs_root' in component_create_data[0]:
+            if component_create_data and 'application_hdfs_root' in component_create_data[0]:
                 app_hdfs_root = component_create_data[0]['application_hdfs_root']
 
         local_path = '/opt/%s/%s/' % (self._service, application_name)
@@ -122,10 +122,10 @@ class ApplicationCreator(object):
         for component_type, component_metadata in package_metadata['component_types'].iteritems():
             creator = self._load_creator(component_type)
             validation_errors = creator.validate_components(component_metadata)
-            if len(validation_errors) > 0:
+            if validation_errors:
                 result[component_type] = validation_errors
 
-        if len(result) > 0:
+        if result:
             raise FailedValidation(result)
 
     def _validate_name(self, package_name, package_metadata):

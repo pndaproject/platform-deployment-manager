@@ -21,7 +21,6 @@ _MAX_TIME_BOUND = 60
 _MAX_PROCESS_TIME = 6
 COMPONENT_STATUS = dict([("green", "OK"), ("amber", "WARN"), ("red", "ERROR")])
 
-# pylint: disable=R0204
 def spark_job_handler(app_id):
     """
     Find Job and Stage status of Spark Application
@@ -339,6 +338,7 @@ def oozie_application(job_handle):
         return oozie_coordinator_handler(oozie_info)
     if 'appName' in oozie_info:
         return oozie_workflow_handler(oozie_info)
+    return None
 
 def compare_yarn_start_time(app_info):
     """

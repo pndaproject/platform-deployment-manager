@@ -20,10 +20,10 @@ either express or implied.
 """
 import json
 import logging
-import requests
 import re
-from exceptiondef import FailedConnection
+import requests
 from requests.exceptions import RequestException
+from exceptiondef import FailedConnection
 
 
 class PackageRepoRestClient(object):
@@ -42,9 +42,9 @@ class PackageRepoRestClient(object):
         :param package_data: The actual binary data of the package
         """
         url = self.api_url + "/packages/" + package_name
-        logging.debug("PUT: " + url)
+        logging.debug("PUT: %s", url)
         response = requests.put(url, data=package_data)
-        logging.debug("response code: " + str(response.status_code))
+        logging.debug("response code: %s", str(response.status_code))
         assert response.status_code == 200
 
     def get_package(self, package_name, expected_codes=None):
@@ -72,10 +72,10 @@ class PackageRepoRestClient(object):
         return json.loads(response.content)
 
     @staticmethod
-    def parse_error_msg_from_html_response(html_str):
+    def parse_error_msg_from_response(html_str):
         title_tag = re.search('<title>(.+?)<.*/title>', html_str)
         if title_tag:
-            cause_msg = re.sub('<[A-Za-z\/][^>]*>', '', title_tag.group())
+            cause_msg = re.sub(r'<[A-Za-z\/][^>]*>', '', title_tag.group())
             return cause_msg
         return html_str
 
@@ -83,21 +83,21 @@ class PackageRepoRestClient(object):
         if not expected_codes:
             expected_codes = [200]
         url = self.api_url + path
-        logging.debug("GET: " + url)
+        logging.debug("GET: %s", url)
 
         try:
             response = requests.get(url, timeout=120)
-        except RequestException as e:
-            logging.debug("Request error: " + str(e))
+        except RequestException as exc:
+            logging.debug("Request error: %s", str(exc))
             error_msg = 'Unable to connect to the Package Repository Manager'
             raise FailedConnection(error_msg)
 
-        logging.debug("response code: " + str(response.status_code))
+        logging.debug("response code: %s", str(response.status_code))
 
         if response.status_code not in expected_codes:
-            error_msg = PackageRepoRestClient.parse_error_msg_from_html_response(response.text)
+            error_msg = PackageRepoRestClient.parse_error_msg_from_response(response.text)
             error_msg = "Package Repository Manager - {} (request path = {})".format(error_msg, path)
-            logging.debug("Server error: " + str(error_msg))
+            logging.debug("Server error: %s", str(error_msg))
         assert response.status_code in expected_codes, error_msg
 
         return response

@@ -25,7 +25,6 @@ either express or implied.
 import json
 import os
 import logging
-import platform
 from shutil import copy
 import deployer_utils
 from plugins.base_common import Common
@@ -51,7 +50,6 @@ class SparkStreamingCreator(Common):
 
     def create_component(self, staged_component_path, application_name, user_name, component, properties):
         logging.debug("create_component: %s %s %s %s", application_name, user_name, json.dumps(component), properties)
-        distro = platform.dist()
         remote_component_tmp_path = '%s/%s/%s' % (
             '/tmp/%s' % self._namespace, application_name, component['component_name'])
         remote_component_install_path = '%s/%s/%s' % (
@@ -72,8 +70,8 @@ class SparkStreamingCreator(Common):
         if 'upstart.conf' in component['component_detail']:
             # old style applications - reject these
             raise Exception('Support for user supplied upstart.conf files has been deprecated, ' +
-                             'the deployment manager will supply one automatically. ' +
-                             'Please see PNDA example-applications for usage.')
+                            'the deployment manager will supply one automatically. ' +
+                            'Please see PNDA example-applications for usage.')
         else:
             # new style applications that don't need to provide upstart.conf or yarn-kill.py
             if 'component_main_jar' in properties and 'component_main_class' not in properties:

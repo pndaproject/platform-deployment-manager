@@ -273,7 +273,7 @@ class Creator(object):
         result = {}
         for component_name, component in components.iteritems():
             validation_errors = self.validate_component(component)
-            if len(validation_errors) > 0:
+            if validation_errors:
                 result[component_name] = validation_errors
         return result
 

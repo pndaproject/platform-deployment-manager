@@ -149,7 +149,7 @@ class OozieCreator(Creator):
                     if prop is not None:
                         try:
                             queue = prop.find('value').text
-                            logging.debug('mapreduce.job.queuename is already set' + queue)
+                            logging.debug('mapreduce.job.queuename is already set: %s', queue)
                         except:
                             logging.error('config-default.xml [\'mapred.queue.names\'] has no value.')
 
