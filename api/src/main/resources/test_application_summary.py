@@ -483,3 +483,57 @@ class AppplicationSummaryTests(unittest.TestCase):
         result = application_summary.check_in_service_log('platform_app', 'application_123', 'example')
         self.assertEqual(result[0], 'FAILED_TO_SUBMIT_TO_YARN')
         self.assertEqual(result[1], 'java.io.FileNotFoundException. More details: execute "journalctl -u platform_app-application_123-example"')
+
+    @patch('application_summary.flink_job_handler')
+    def test_flink_yarn_handler(self, flink_job_patch):
+        """
+        Tetsing flink application
+        """
+        #flink application in case of Running with no vertices in FAILED state
+        flink_job_patch.return_value = {'state': 'OK', 'flinkJid': 'uh3u74y7f3uh8'}
+        input_data = {'id': 'application_1234', 'state': 'RUNNING', \
+        'finalStatus': 'UNDEFINED', 'trackingUrl': 'http://some_url/'}
+        result = application_summary.flink_yarn_handler(input_data, 'flink-app-name')
+        self.assertEqual(result[0], '%s' % ('RUNNING'))
+        self.assertEqual(result[2], '%s' % ('http://some_url/#/jobs/uh3u74y7f3uh8'))
+
+        #flink application in case of Running with any of the vertices in FAILED state
+        flink_job_patch.return_value = {'state': 'ERROR', 'flinkJid': 'hd3uhu3y4fu3hd'}
+        input_data = {'id': 'application_1234', 'state': 'RUNNING', \
+        'finalStatus': 'UNDEFINED', 'trackingUrl': 'http://some_url/'}
+        result = application_summary.flink_yarn_handler(input_data, 'flink-app-name')
+        self.assertEqual(result[0], '%s' % ('RUNNING_WITH_ERRORS'))
+        self.assertEqual(result[2], '%s' % ('http://some_url/#/jobs/hd3uhu3y4fu3hd'))
+
+        #flink application in other states than above states
+        input_data = {'id': 'application_1234', 'state': 'ACCEPTED', \
+        'finalStatus': 'UNDEFINED', 'diagnostics': 'Accepted'}
+        result = application_summary.flink_yarn_handler(input_data, 'flink-app-name')
+        self.assertEqual(result[0], '%s' % ('ACCEPTED'))
+
+    @patch('requests.get')
+    def test_flink_job_handler(self, flink_mock_req):
+        flink_mock_req.side_effect = [type('obj', (object,), {'status_code' : 200, 'text': json.dumps(
+            {
+                'jobs-running': ['jhfi48y8rfuf3ci'], 'jobs-finished': []
+            }
+        )}), type('obj', (object,), {'status_code' : 200, 'text': json.dumps(
+            {
+                'jid': 'jhfi48y8rfuf3ci', 'vertices': [{'name': 'vertice_name', 'status': 'RUNNING'}]
+            }
+        )})]
+        result = application_summary.flink_job_handler('http://some_url/')
+        self.assertEqual(result['flinkJid'], '%s' % ('jhfi48y8rfuf3ci'))
+        self.assertEqual(result['state'], '%s' % ('OK'))
+
+        flink_mock_req.side_effect = [type('obj', (object,), {'status_code' : 200, 'text': json.dumps(
+            {
+                'jobs-running': ['jhfi48y8rfuf3ci'], 'jobs-finished': []
+            }
+        )}), type('obj', (object,), {'status_code' : 200, 'text': json.dumps(
+            {
+                'jid': 'jhfi48y8rfuf3ci', 'vertices': [{'name': 'vertice_name', 'status': 'FAILED'}]
+            }
+        )})]
+        result = application_summary.flink_job_handler('http://some_url/')
+        self.assertEqual(result['state'], '%s' % ('ERROR'))

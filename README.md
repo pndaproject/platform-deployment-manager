@@ -354,7 +354,31 @@ Response Codes:
   }
 }
 ````
-
+### Summary status in case of flink component
+````
+{
+  "test1": {
+    "aggregate_status": "RUNNING",
+    "flink-1": {
+      "information": {
+        "state": "OK",
+        "vertices": [
+          {
+            "status": "RUNNING",
+            "name": "Source"
+          }
+        ],
+        "flinkJid": "e7a7163fef86ad81017a0239839207cb"
+      },
+      "name": "test1-example-job",
+      "yarnId": "application_1524556418619_0205",
+      "trackingUrl": "http://rhel-hadoop-mgr-1.node.dc1.pnda.local:8088/proxy/application_1524556418619_0205/#/jobs/e7a7163fef86ad81017a0239839207cb",
+      "componentType": "Flink",
+      "aggregate_status": "RUNNING"
+    }
+  }
+}
+````
 ### Start _application_
 ````
 POST /applications/<application>/start?user.name=<username>

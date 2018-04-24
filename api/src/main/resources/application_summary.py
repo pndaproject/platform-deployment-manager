@@ -457,6 +457,109 @@ def spark_application(job_name, application, component_name):
     ret.update({"componentType": "SparkStreaming"})
     return ret
 
+def flink_job_handler(flink_url):
+    flink_data = {'state': 'ERROR', 'flinkJid': ''}
+    positive_status_list = ['CREATED', 'SCHEDULED', 'DEPLOYING', 'RUNNING', 'FINISHED', 'RECONCILING']
+    try:
+        url = '%s%s' % (flink_url, 'jobs')
+        flink_job_list_resp = requests.get(url, timeout=_MAX_PROCESS_TIME)
+        flink_job_list_resp = json.loads(flink_job_list_resp.text)
+        if flink_job_list_resp['jobs-running']:
+            url = '%s/%s' % (url, flink_job_list_resp['jobs-running'][0])
+            flink_resp_data = requests.get(url, timeout=_MAX_PROCESS_TIME)
+            flink_resp_data = json.loads(flink_resp_data.text)
+            flink_data['flinkJid'] = flink_resp_data['jid']
+            flink_data['vertices'] = []
+            for vertice in flink_resp_data['vertices']:
+                if vertice['status'] in positive_status_list:
+                    flink_data['state'] = 'OK'
+                flink_data['vertices'].append({'name': vertice['name'].split(' ')[0].split(':')[0], \
+                'status': vertice['status']})
+    except ValueError as error_message:
+        logging.debug(str(error_message))
+    except requests.exceptions.Timeout as error_message:
+        logging.debug(str(error_message))
+    return flink_data
+
+def flink_yarn_handler(yarn_data, application):
+    '''
+    Handling Flink YARN data
+    '''
+    information = {}
+    (aggregate_status, trackingUrl) = ('', '')
+    yarnid = yarn_data['id']
+    if yarn_data['state'] == 'SUBMITTED' or yarn_data['state'] == 'ACCEPTED':
+        aggregate_status = yarn_data['state']
+        message = yarn_data['diagnostics'].split('Details :')[0].strip()
+        information = {'yarn_diagnostics': message}
+    elif yarn_data['state'] == 'RUNNING':
+        flink_data = flink_job_handler(yarn_data['trackingUrl'])
+        if flink_data['state'] == 'OK':
+            aggregate_status = 'RUNNING'
+        else:
+            aggregate_status = 'RUNNING_WITH_ERRORS'
+        information = flink_data
+        trackingUrl = '%s#/jobs/%s' % (yarn_data['trackingUrl'], flink_data['flinkJid'])
+    elif yarn_data['finalStatus'] == 'SUCCEEDED':
+        aggregate_status = 'SUCCEEDED'
+        flink_job_id = _HBASE.get_flink_job_id(application)
+        if len(flink_job_id) < 1:
+            trackingUrl = 'http://%s/#/completed-jobs' % (CONFIG['environment']['flink_history_server'])
+        else:
+            trackingUrl = 'http://%s/#/jobs/%s' % (CONFIG['environment']['flink_history_server'], flink_job_id)
+        information = {'flinkJid': flink_job_id}
+    elif yarn_data['finalStatus'] == 'FAILED' or yarn_data['finalStatus'] == 'KILLED':
+        aggregate_status = yarn_data['finalStatus']
+        flink_job_id = _HBASE.get_flink_job_id(application)
+        if len(flink_job_id) < 1:
+            trackingUrl = 'http://%s/#/completed-jobs' % (CONFIG['environment']['flink_history_server'])
+        else:
+            trackingUrl = 'http://%s/#/jobs/%s' % (CONFIG['environment']['flink_history_server'], flink_job_id)
+        message = yarn_data['diagnostics'].split('Details :')[0].strip()
+        information = {'yarn_diagnostics': message, 'flinkJid': flink_job_id}
+    else:
+        aggregate_status = 'NOT_FOUND'
+        message = yarn_data.get('RemoteException', {'message': ['']}).\
+        get('message').split(':')
+        message[0] = ''
+        information = {'yarn_diagnostics': ''.join(message).strip()}
+    return aggregate_status, yarnid, trackingUrl, information
+
+def flink_application(job_name, application, component_name):
+    """
+    Handling Flink Application
+    """
+    (ret, information) = ({}, {})
+    (aggregate_status, yarnid, trackingUrl) = ('', '', '')
+    check_in_service = False
+    status, timestamp = _HBASE.get_status_with_timestamp(application)
+    yarn_data = check_in_yarn(job_name)
+    if status == 'CREATED':
+        if yarn_data != None:
+            aggregate_status, yarnid, trackingUrl, information = flink_yarn_handler(yarn_data, application)
+        else:
+            aggregate_status = ApplicationState.CREATED
+    else:
+        if yarn_data != None:
+            if timestamp < yarn_data['startedTime']:
+                aggregate_status, yarnid, trackingUrl, information = flink_yarn_handler(yarn_data, application)
+            else:
+                check_in_service = True
+        else:
+            check_in_service = True
+    if check_in_service:
+        aggregate_status, message = check_in_service_log(CONFIG['environment']['namespace'], application, component_name)
+        information.update({'service_script_log': message})
+    ret = {
+        'aggregate_status': aggregate_status,
+        'yarnId': yarnid,
+        'information': information,
+        'trackingUrl': trackingUrl,
+        'name': job_name
+    }
+    ret.update({"componentType": "Flink"})
+    return ret
+
 def get_json(component_list, queue_obj):
     """
     Processing Components and return generated Component data
@@ -474,6 +577,10 @@ def get_json(component_list, queue_obj):
                     (component[application][component_name]['job_handle'])})
                 if 'sparkStreaming' in component_name:
                     ret[application].update({component_name: spark_application\
+                    (component[application][component_name]['component_job_name'], application,\
+                     component[application][component_name]['component_name'])})
+                if 'flink' in component_name:
+                    ret[application].update({component_name: flink_application\
                     (component[application][component_name]['component_job_name'], application,\
                      component[application][component_name]['component_name'])})
     queue_obj.put([{process_name: ret}])
@@ -512,6 +619,12 @@ def split_application_components(alist, split_c):
                     '%s-%d' % ('sparkStreaming', (count+1)): spark_component
                 }})
                 index = (index + 1) % split_c
+        if 'flink' in create_data:
+            for count, flink_component in enumerate(create_data['flink']):
+                applist[index].append({app: {
+                    '%s-%d' % ('flink', (count+1)): flink_component
+                }})
+                index = (index + 1) % split_c
     return applist
 
 def find_split_count(applist):
@@ -526,8 +639,10 @@ def find_split_count(applist):
             oozie_component_count = len(create_data['oozie'])
         if 'sparkStreaming' in create_data:
             spark_component_count = len(create_data['sparkStreaming'])
-        component_count += oozie_component_count + spark_component_count
-        (oozie_component_count, spark_component_count) = (0, 0)
+        if 'flink' in create_data:
+            flink_component_count = len(create_data['flink'])
+        component_count += oozie_component_count + spark_component_count + flink_component_count
+        (oozie_component_count, spark_component_count, flink_component_count) = (0, 0, 0)
     process_count = (component_count * _MAX_PROCESS_TIME)/_MAX_TIME_BOUND
     if process_count > _MAX_PROCESS_COUNT:
         split_count = _MAX_PROCESS_COUNT
@@ -564,7 +679,8 @@ def process_application_data(application):
             temp_status_priority = 7
         elif temp_comp_status == 'KILLED_WITH_FAILURES':
             temp_status_priority = 8
-        elif temp_comp_status == 'COMPLETED' or temp_comp_status == 'FINISHED_SUCCEEDED':
+        elif temp_comp_status == 'COMPLETED' or temp_comp_status == 'FINISHED_SUCCEEDED' \
+            or temp_comp_status == 'SUCCEEDED':
             temp_status_priority = 9
         elif temp_comp_status == 'COMPLETED_WITH_FAILURES' or temp_comp_status == 'FAILED' \
             or temp_comp_status == 'FINISHED_FAILED':
