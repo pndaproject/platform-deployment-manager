@@ -37,7 +37,7 @@ import deployer_utils
 import application_summary_registrar
 import deployment_manager
 from deployer_system_test import DeployerRestClientTester
-from exceptiondef import NotFound, ConflictingState, FailedValidation, FailedCreation, FailedConnection
+from exceptiondef import NotFound, ConflictingState, FailedValidation, FailedCreation, FailedConnection, Forbidden
 from async_dispatcher import AsyncDispatcher
 from package_repo_rest_client import PackageRepoRestClient
 
@@ -77,6 +77,10 @@ class BaseHandler(CorsMixin, tornado.web.RequestHandler):
             elif isinstance(ex, FailedValidation):
                 logging.info(ex.msg)
                 self.set_status(400)
+                self.finish(ex.msg)
+            elif isinstance(ex, Forbidden):
+                logging.info(ex.msg)
+                self.set_status(403)
                 self.finish(ex.msg)
             elif isinstance(ex, FailedCreation):
                 logging.info(ex.msg)
@@ -220,12 +224,13 @@ class ApplicationsHandler(BaseHandler):
 class ApplicationDetailHandler(BaseHandler):
     @asynchronous
     def post(self, name, action):
+        user_name = self.get_argument("user")
         def do_call():
             if action == 'start':
-                dm.start_application(name)
+                dm.start_application(name, user_name)
                 self.send_accepted()
             elif action == 'stop':
-                dm.stop_application(name)
+                dm.stop_application(name, user_name)
                 self.send_accepted()
             else:
                 self.send_client_error("%s is not a valid action (start|stop)" % action)
@@ -264,11 +269,12 @@ class ApplicationHandler(BaseHandler):
             self.send_client_error("Invalid request body. Missing field 'package'")
             return
 
-        if 'user' not in request_body:
-            self.send_client_error("Invalid request body. Missing field 'user'")
+        if 'user' in request_body:
+            self.send_client_error("Invalid request body. User should be passed in URI")
             return
-
+        user_name = self.get_argument("user")
         def do_call():
+            request_body.update({'user': user_name})
             dm.create_application(request_body['package'], aname, request_body)
             self.send_accepted()
 
@@ -283,8 +289,9 @@ class ApplicationHandler(BaseHandler):
 
     @asynchronous
     def delete(self, name):
+        user_name = self.get_argument("user")
         def do_call():
-            dm.delete_application(name)
+            dm.delete_application(name, user_name)
             self.send_accepted()
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
