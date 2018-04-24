@@ -525,11 +525,17 @@ environment_zookeeper_port              2181
 environment_zookeeper_quorum            cluster-cdh-mgr1
 ````
 
-## Spark Streamining Specific Variables ##
+## Spark Version Selection for Oozie and Spark Streaming ##
+Both Spark streaming and Oozie components can be configured to use either Spark1 or Spark2. This may be set by including `spark_version` in properties.json and setting it to `1` or `2`. It defaults to Spark1 if `spark_version` is not included.
+
+````
+component_spark_version            major version of spark to use. Set to '1' or '2'. Only applicable to HDP clusters
+````
+
+## Spark Streaming Specific Variables ##
 The following varibles are only injected for Spark streaming components. They may be overridden in properties.json, for example to override `component_spark_version`, include `spark_version` in properties.json.
 
 ````
-component_spark_version            major version of spark to use. Only applicable to HDP clusters, when using CDH PNDA does not support side-by-side Spark frameworks and whatever version is run by the spark-submit command will be used.
 component_spark_submit_args        additional arguments to spark-submit
 (java only) component_main_jar     the jar containing the job code
 (python only) component_main_py    the python file containing the job code
