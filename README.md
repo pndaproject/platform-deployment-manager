@@ -329,43 +329,23 @@ user.name - User name to run this command as. Should have permissions to perform
 
 ````
 {
-  "oozie-application": {
-    "aggregate_status": "STARTED_RUNNING_WITH_ERRORS",
+  "spark-batch-py": {
+    "aggregate_status": "COMPLETED",
     "oozie-1": {
-      "status": "WARN",
-      "aggregate_status": "STARTED_RUNNING_WITH_ERRORS",
+      "status": "OK",
+      "name": "spark-batch-py-workflow",
       "actions": {
-        "workflow-1": {
-          "status": "WARN",
-          "oozieId": "0000004-171229054340125-oozie-oozi-W",
-          "actions": {
-            "subworkflow-1": {
-              "status": "WARN",
-              "oozieId": "0000005-171229054340125-oozie-oozi-W",
-              "actions": {
-                "job-2": {
-                  "status": "ERROR",
-                  "information": "No JSON object could be decoded",
-                  "applicationType": "SPARK",
-                  "name": "process",
-                  "yarnId": "application_1514526198433_0022"
-                },
-                "job-1": {
-                  "status": "OK",
-                  "information": null,
-                  "applicationType": "MAPREDUCE",
-                  "name": "download",
-                  "yarnId": "application_1514526198433_0019"
-                }
-              },
-              "name": "oozie-application-subworkflow"
-            }
-          },
-          "name": "oozie-application-workflow"
+        "job-1": {
+          "status": "OK",
+          "information": "",
+          "yarnId": "application_1531380960927_0152",
+          "applicationType": "spark",
+          "name": "process"
         }
       },
-      "oozieId": "0000003-171229054340125-oozie-oozi-C",
-      "name": "oozie-application-coordinator"
+      "componentType": "Oozie",
+      "aggregate_status": "COMPLETED",
+      "oozieId": "0000013-180712073712712-oozie-oozi-W"
     }
   }
 }
@@ -373,33 +353,59 @@ user.name - User name to run this command as. Should have permissions to perform
 ### Summary status in case of spark-streaming component
 ````
 {
-  "spark-streaming-application": {
-    "aggregate_status": "STARTED_RUNNING_WITH_NO_ERRORS",
+  "spark-stream": {
+    "aggregate_status": "RUNNING",
     "sparkStreaming-1": {
       "information": {
         "stageSummary": {
           "active": 0,
-          "number_of_stages": 128,
-          "complete": 128,
+          "number_of_stages": 1404,
+          "complete": 1000,
           "pending": 0,
           "failed": 0
         },
         "jobSummary": {
           "unknown": 0,
-          "number_of_jobs": 32,
+          "number_of_jobs": 351,
           "running": 0,
-          "succeeded": 32,
+          "succeeded": 351,
           "failed": 0
         }
       },
-      "aggregate_status": "STARTED_RUNNING_WITH_NO_ERRORS",
-      "name": "spark-streaming-application-example-job",
-      "yarnId": "application_1514526198433_0069"
+      "name": "spark-stream-example-job",
+      "yarnId": "application_1531380960927_0153",
+      "componentType": "SparkStreaming",
+      "aggregate_status": "RUNNING",
+      "tracking_url": "http://st-2-std-hadoop-mgr-2.node.dc1.pnda.local:8088/proxy/application_1531380960927_0153/"
     }
   }
 }
 ````
-
+### Summary status in case of flink component
+````
+{
+  "test1": {
+    "aggregate_status": "RUNNING",
+    "flink-1": {
+      "information": {
+        "state": "OK",
+        "vertices": [
+          {
+            "status": "RUNNING",
+            "name": "Source"
+          }
+        ],
+        "flinkJid": "e7a7163fef86ad81017a0239839207cb"
+      },
+      "name": "test1-example-job",
+      "yarnId": "application_1524556418619_0205",
+      "trackingUrl": "http://rhel-hadoop-mgr-1.node.dc1.pnda.local:8088/proxy/application_1524556418619_0205/#/jobs/e7a7163fef86ad81017a0239839207cb",
+      "componentType": "Flink",
+      "aggregate_status": "RUNNING"
+    }
+  }
+}
+````
 ### Start _application_
 ````
 POST /applications/<application>/start?user.name=<username>
