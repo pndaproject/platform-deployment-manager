@@ -38,6 +38,12 @@ class NotFound(DmException):
         super(NotFound, self).__init__(arg)
         self.msg = arg
 
+class Forbidden(DmException):
+
+    def __init__(self, arg):
+        super(Forbidden, self).__init__(arg)
+        self.msg = arg
+
 
 class ConflictingState(DmException):
 

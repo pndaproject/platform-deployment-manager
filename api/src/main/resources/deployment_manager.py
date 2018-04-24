@@ -30,7 +30,7 @@ import traceback
 import requests
 
 import application_creator
-from exceptiondef import ConflictingState, NotFound
+from exceptiondef import ConflictingState, NotFound, Forbidden
 from package_parser import PackageParser
 from async_dispatcher import AsyncDispatcher
 from lifecycle_states import ApplicationState, PackageDeploymentState
@@ -268,7 +268,7 @@ class DeploymentManager(object):
         applications = self._application_registrar.list_applications()
         return applications
 
-    def _assert_application_status(self, application, required_status):
+    def _assert_application_status(self, application, required_status, user_name):
         app_info = self.get_application_info(application)
         status = app_info['status']
 
@@ -279,15 +279,21 @@ class DeploymentManager(object):
             else:
                 raise ConflictingState(json.dumps({'status': status}))
 
+        if status != ApplicationState.NOTCREATED:
+            created_user = app_info['overrides']['user']
+            if user_name != created_user and user_name != self._config["admin_user"]:
+                information = '%s is not authorized' % user_name
+                raise Forbidden(json.dumps({'information': information}))
+
     def _assert_application_exists(self, application):
         status = self.get_application_info(application)['status']
         if status == ApplicationState.NOTCREATED:
             raise NotFound(json.dumps({'status': status}))
 
-    def start_application(self, application):
+    def start_application(self, application, user_name):
         logging.info('start_application')
         with self._lock:
-            self._assert_application_status(application, ApplicationState.CREATED)
+            self._assert_application_status(application, ApplicationState.CREATED, user_name)
             self._mark_starting(application)
 
         def do_work():
@@ -306,10 +312,10 @@ class DeploymentManager(object):
 
         self.dispatcher.run_as_asynch(task=do_work)
 
-    def stop_application(self, application):
+    def stop_application(self, application, user_name):
         logging.info('stop_application')
         with self._lock:
-            self._assert_application_status(application, ApplicationState.STARTED)
+            self._assert_application_status(application, ApplicationState.STARTED, user_name)
             self._mark_stopping(application)
 
         def do_work():
@@ -360,7 +366,7 @@ class DeploymentManager(object):
         package_data_path = None
 
         with self._lock:
-            self._assert_application_status(application, ApplicationState.NOTCREATED)
+            self._assert_application_status(application, ApplicationState.NOTCREATED, overrides['user'])
             self._assert_package_status(package, PackageDeploymentState.DEPLOYED)
             defaults = self.get_package_info(package)['defaults']
             package_data_path = self._package_registrar.get_package_data(package)
@@ -404,10 +410,10 @@ class DeploymentManager(object):
         # set the status:
         self._application_registrar.set_application_status(application, app_status, error_message)
 
-    def delete_application(self, application):
+    def delete_application(self, application, user_name):
         logging.info('delete_application')
         with self._lock:
-            self._assert_application_status(application, [ApplicationState.CREATED, ApplicationState.STARTED])
+            self._assert_application_status(application, [ApplicationState.CREATED, ApplicationState.STARTED], user_name)
             self._mark_destroying(application)
 
         def do_work():

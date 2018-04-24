@@ -25,7 +25,7 @@ import traceback
 from multiprocessing import Event
 from mock import Mock, patch, mock_open
 from deployment_manager import DeploymentManager
-from exceptiondef import NotFound, ConflictingState, FailedValidation
+from exceptiondef import NotFound, ConflictingState, FailedValidation, Forbidden
 from lifecycle_states import ApplicationState, PackageDeploymentState
 
 
@@ -75,7 +75,7 @@ class DeploymentManagerTest(unittest.TestCase):
             'queue_policy': 'echo dev',
             'namespace': 'mockspace'
         }
-        self.mock_config = {"deployer_thread_limit": 1, 'stage_root': 'stage', 'plugins_path': 'plugins'}
+        self.mock_config = {"deployer_thread_limit": 1, 'stage_root': 'stage', 'plugins_path': 'plugins', 'admin_user': 'username'}
         # mock app registrar:
         mock_application_registar = Mock()
         application_data = {}
@@ -83,7 +83,7 @@ class DeploymentManagerTest(unittest.TestCase):
         mock_application_registar.get_application = lambda app: application_data.get(app, None)
         mock_application_registar.set_application_status = \
             lambda app, status, info=None: set_dictionary_value(application_data, app,
-                                                                {"status": status, "information": info})
+                                                                {"status": status, "information": info, 'overrides':{'user':'username'}})
         self.mock_application_registar = mock_application_registar
         self.mock_summary_registar = Mock()
 
@@ -342,7 +342,7 @@ class DeploymentManagerTest(unittest.TestCase):
 
         self.mock_application_registar.set_application_status(self.test_app_name, ApplicationState.CREATED)
         # launch the asynch test
-        deployment_manager.start_application(self.test_app_name)
+        deployment_manager.start_application(self.test_app_name, 'username')
         # wait for test to finsish
         on_complete.wait(5)
         self.assertIsNotNone(test_result[0], "async task completed")
@@ -381,7 +381,7 @@ class DeploymentManagerTest(unittest.TestCase):
 
         self.mock_application_registar.set_application_status(self.test_app_name, ApplicationState.STARTED)
         # launch the asynch test
-        deployment_manager.delete_application(self.test_app_name)
+        deployment_manager.delete_application(self.test_app_name, 'username')
         # wait for test to finsish
         on_complete.wait(5)
         self.assertIsNotNone(test_result[0], "async task completed")
@@ -420,7 +420,7 @@ class DeploymentManagerTest(unittest.TestCase):
 
         self.mock_application_registar.set_application_status(self.test_app_name, ApplicationState.STARTED)
         # launch the asynch test
-        deployment_manager.stop_application(self.test_app_name)
+        deployment_manager.stop_application(self.test_app_name, 'username')
         # wait for test to finsish
         on_complete.wait(5)
         self.assertIsNotNone(test_result[0], "async task completed")
@@ -458,7 +458,7 @@ class DeploymentManagerTest(unittest.TestCase):
 
         # launch the asynch test
         self.mock_application_registar.set_application_status(self.test_app_name, "STARTED")
-        deployment_manager.stop_application(self.test_app_name)
+        deployment_manager.stop_application(self.test_app_name, 'username')
         # wait for test to finsish
         on_complete.wait(5)
         self.assertIsNotNone(test_result[0], "async task completed")
@@ -731,7 +731,7 @@ class DeploymentManagerTest(unittest.TestCase):
             'information': None}
         application_summary_registrar = Mock()
         environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
-        config = {"deployer_thread_limit": 10}
+        config = {"deployer_thread_limit": 10, 'admin_user':'username'}
 
         dmgr = DeploymentManager(repository,
                                  package_registrar,
@@ -740,7 +740,7 @@ class DeploymentManagerTest(unittest.TestCase):
                                  environment,
                                  config)
 
-        self.assertRaises(ConflictingState, dmgr.start_application, "name")
+        self.assertRaises(ConflictingState, dmgr.start_application, "name", 'username')
 
     def test_package_in_progress(self):
         repository = Mock()
@@ -748,7 +748,7 @@ class DeploymentManagerTest(unittest.TestCase):
         application_registrar = Mock()
         application_summary_registrar = Mock()
         environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
-        config = {"deployer_thread_limit": 10}
+        config = {"deployer_thread_limit": 10, 'admin_user':'username'}
 
         class DeploymentManagerTester(DeploymentManager):
             def set_package_progress(self, package, state):
@@ -772,7 +772,7 @@ class DeploymentManagerTest(unittest.TestCase):
         application_registrar = Mock()
         application_summary_registrar = Mock()
         environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
-        config = {"deployer_thread_limit": 10}
+        config = {"deployer_thread_limit": 10, 'admin_user':'username'}
         dmgr = DeploymentManager(repository,
                                  package_registrar,
                                  application_registrar,
@@ -858,3 +858,28 @@ class DeploymentManagerTest(unittest.TestCase):
                                  config)
 
         self.assertEqual(dmgr.get_application_summary('name'), {'name':{'aggregate_status': 'COMPLETED_WITH_NO_FAILURES', 'component-1': {}}})
+
+    def test_unauthorized_user_start(self):
+        repository = Mock()
+        package_registrar = Mock()
+        application_registrar = Mock()
+        application_registrar.get_application.return_value = {
+            'overrides': {"user":"user2"},
+            'defaults': {},
+            'name': 'name',
+            'package_name': 'package_name',
+            'status': ApplicationState.CREATED,
+            'information': None}
+        application_registrar.get_application_user.return_value = 'user2'
+        application_summary_registrar = Mock()
+        environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
+        config = {"deployer_thread_limit": 10, "admin_user": "admin"}
+
+        dmgr = DeploymentManager(repository,
+                                 package_registrar,
+                                 application_registrar,
+                                 application_summary_registrar,
+                                 environment,
+                                 config)
+
+        self.assertRaises(Forbidden, dmgr.start_application, "name", 'user1')
