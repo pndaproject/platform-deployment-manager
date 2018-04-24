@@ -2,6 +2,7 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
 ### Changed
 - PNDA-4405: Require user and package fields in create application API
 - PNDA-4389: Reject packages containing upstart.conf files
@@ -12,6 +13,7 @@ All notable changes to this project will be documented in this file.
 - PNDA-4218: Fix application deletion when app name is an HDFS username
 - PNDA-4012: Add missing application type in application detailed summary
 - PNDA-4009: Improve application status naming in application detailed summary
+- PNDA-4237: Failure details provided in application summary info if an application fails to submit to YARN
 
 ## [1.0.0] 2018-02-10
 ### Added:
