@@ -59,6 +59,52 @@ requested spark version" % self._config['oozie_spark_version']
                 raise FailedValidation(json.dumps({"information": information}))
             properties = None
 
+    def exec_cmds(self, exec_commands):
+        key_file = self._environment['cluster_private_key']
+        root_user = self._environment['cluster_root_user']
+        target_host = 'localhost'
+        deployer_utils.exec_ssh(target_host, root_user, key_file, exec_commands)
+
+    def stage_flink_components(self, application_name, component_name, properties, staged_component_path):
+        component_install_path = '%s/%s/%s' % (
+            '/opt/%s' % self._namespace, application_name, component_name)
+        properties['component_staged_path'] = component_install_path
+
+        this_dir = os.path.dirname(os.path.realpath(__file__))
+
+        if 'component_main_jar' in properties:
+            service_script = 'flink-oozie.execute.sh.tpl'
+        elif 'component_main_py' in properties:
+            service_script = 'flink-oozie.execute.py.sh.tpl'
+            flink_lib_dir = properties['environment_flink_lib_dir']
+            for jar in os.listdir(flink_lib_dir):
+                if os.path.isfile(os.path.join(flink_lib_dir, jar)) and 'flink-python' in jar:
+                    properties['flink_python_jar'] = '%s/%s' % (flink_lib_dir, jar)
+        else:
+            raise Exception('properties.json must contain "main_jar or main_py" for %s flink-batch-job %s' % (application_name, component['component_name']))
+
+        shutil.copyfile(os.path.join(this_dir, 'flink-stop.py'), '%s/lib/flink-stop.py' % staged_component_path)
+        shutil.copyfile(os.path.join(this_dir, service_script), '%s/lib/%s' % (staged_component_path, service_script))
+        self._fill_properties(os.path.join('%s/lib' % staged_component_path, "flink-stop.py"), properties)
+        self._fill_properties(os.path.join('%s/lib' % staged_component_path, service_script), properties)
+
+        mkdir_commands = []
+        mkdir_commands.append('sudo mkdir -p %s' % component_install_path)
+        self.exec_cmds(mkdir_commands)
+
+        os.system("cp -r %s %s"
+                % (staged_component_path + '/lib/*', component_install_path))
+
+        copy_commands = []
+        copy_commands.append('sudo mv  %s/%s %s/execute.sh' % (component_install_path, service_script, component_install_path))
+        copy_commands.append('sudo chmod 777 %s/execute.sh' % (component_install_path))
+        self.exec_cmds(copy_commands)
+
+        # adding flink_client host and script path to properties
+        flink_host = "%s@%s" % (self._environment['cluster_root_user'], self._environment['flink_host'])
+        properties['flink_client'] = flink_host
+        properties['path_to_script'] = '%s/execute.sh' % component_install_path
+
     def destroy_component(self, application_name, create_data):
         logging.debug(
             "destroy_component: %s %s",
@@ -71,6 +117,12 @@ requested spark version" % self._config['oozie_spark_version']
         remote_path = create_data['component_hdfs_root'][1:]
         self._hdfs_client.remove(remote_path, recursive=True)
 
+        # stop flink job and delete component from local
+        if "flink_staged_path" in create_data:
+            destroy_commands = ["python %s/flink-stop.py" % create_data["flink_staged_path"],
+                           "sudo rm -rf %s\n" % create_data["flink_staged_path"]]
+            self.exec_cmds(destroy_commands)
+
     def start_component(self, application_name, create_data):
         logging.debug("start_component: %s %s", application_name, json.dumps(create_data))
         self._start_oozie(create_data['job_handle'], create_data['application_user'])
@@ -78,6 +130,11 @@ requested spark version" % self._config['oozie_spark_version']
     def stop_component(self, application_name, create_data):
         logging.debug("stop_component: %s %s", application_name, json.dumps(create_data))
         self._stop_oozie(create_data['job_handle'], create_data['application_user'])
+
+        # stop flink job
+        if "flink_staged_path" in create_data:
+            stop_commands = ["python %s/flink-stop.py" % create_data["flink_staged_path"]]
+            self.exec_cmds(stop_commands)
 
     def create_component(self, staged_component_path, application_name, user_name, component, properties):
         logging.debug(
@@ -101,6 +158,10 @@ requested spark version" % self._config['oozie_spark_version']
         end = start + delta_end
         properties['deployment_start'] = start.strftime("%Y-%m-%dT%H:%MZ")
         properties['deployment_end'] = end.strftime("%Y-%m-%dT%H:%MZ")
+
+        # for flink jobs, code need to be staged locally because both ssh action and flink client requires code to be present in local
+        if properties.get('component_job_type','') == 'flink':
+            self.stage_flink_components(application_name, component['component_name'], properties, staged_component_path)
 
         # insert required oozie properties
         properties['user.name'] = properties['application_user']
@@ -131,9 +192,16 @@ requested spark version" % self._config['oozie_spark_version']
         undeploy = self._deploy_to_hadoop(component, properties, staged_component_path, remote_path, properties['application_user'])
 
         # return something that can be used to undeploy later
-        return {'job_handle': undeploy['id'],
+        ret_data = {}
+
+        # if code staged locally in case of flink, add flink local staged path in return data for other oprations
+        if "component_staged_path" in properties:
+            ret_data["flink_staged_path"] = properties["component_staged_path"]
+
+        ret_data.update({'job_handle': undeploy['id'],
                 'component_hdfs_root': properties['component_hdfs_root'],
-                'application_user': properties['application_user']}
+                'application_user': properties['application_user']})
+        return ret_data
 
     def _setup_queue_config(self, component, staged_component_path, properties):
         # Add queue config into the default config if none is defined.
