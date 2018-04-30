@@ -89,6 +89,10 @@ class SparkStreamingCreator(Common):
             copy(os.path.join(this_dir, 'yarn-kill.py'), staged_component_path)
             service_script = 'systemd.service.tpl' if java_app else 'systemd.service.py.tpl'
             service_script_install_path = '/usr/lib/systemd/system/%s.service' % service_name
+            if 'component_respawn_type' not in properties:
+                properties['component_respawn_type'] = 'always'
+            if 'component_respawn_timeout_sec' not in properties:
+                properties['component_respawn_timeout_sec'] = '2'
             copy(os.path.join(this_dir, service_script), staged_component_path)
 
         self._fill_properties(os.path.join(staged_component_path, service_script), properties)
