@@ -59,6 +59,10 @@ Applications may be paused and restarted. This leaves all the installed componen
 
 Each Creator implements a specific set of steps to uninstall components of its associated type. The Creator is passed the application data associated with the package and component and uses this to execute those steps.
 
+### User authentication ###
+
+User who creates application can do operations on the specific application by mentioning username as a URI parameter. If unauthorised user tries to do any opertaion on application 403 Forbidden will be thrown.
+An admin user will be available, admin user can do any operation on any application. Admin user can be configured using pillar data
 
 # Requirements
 
@@ -83,8 +87,8 @@ To build the Deployment Manager, change to the `api` directory, which contains t
   * [GET /packages/_package_/applications](#list-applications-that-have-been-created-from-package)
   * [GET /applications/_application_/status](#get-the-status-for-application)
   * [GET /applications/_application_/summary](#get-the-summary-status-for-application)
-  * [POST /applications/_application_/start](#start-application)
-  * [POST /applications/_application_/stop](#stop-application)
+  * [POST /applications/_application_](#start-application)
+  * [POST /applications/_application_](#stop-application)
   * [GET /applications/_application_](#get-full-information-for-application)
   * [PUT /applications/_application_](#create-application-from-package)
   * [DELETE /applications/_application_](#destroy-application)
@@ -358,23 +362,27 @@ Response Codes:
 
 ### Start _application_
 ````
-POST /applications/<application>/start
+POST /applications/<application>/start?user=<username>
 
 Response Codes:
 202 - Accepted, poll /applications/<application>/status for status
+403 - Unauthorised user
 404 - Application not known
 500 - Server Error
 ````
+Username, who created the application should be passed. See [User Authentication](#user-authentication) section for more details
 
 ### Stop _application_
 ````
-POST /applications/<application>/stop
+POST /applications/<application>/stop?user=<username>
 
 Response Codes:
 202 - Accepted, poll /applications/<application>/status for status
+403 - Unauthorised user
 404 - Application not known
 500 - Server Error
 ````
+Username, who created the application should be passed. See [User Authentication](#user-authentication) section for more details
 
 ### Get full information for _application_
 ````
@@ -419,9 +427,8 @@ Example response:
 ### Create _application_ from _package_
 
 ````
-PUT /applications/<application>
+PUT /applications/<application>?user=<username>
 {
-	"user": "<username>",
 	"package": "<package>",
 	"<componentType>": {
 		"<componentName>": {
@@ -439,7 +446,6 @@ Response Codes:
 
 Example body:
 {
-	"user": "somebody",
 	"package": "<package>",
 	"oozie": {
 		"example": {
@@ -448,18 +454,21 @@ Example body:
 	}
 }
 
-Package and user are mandatory, property settings are optional
+Package is mandatory, property settings are optional
 ````
+Username, who creates this application should be passed. See [User Authentication](#user-authentication) section for more details
 
 ### Destroy _application_
 ````
-DELETE /applications/<application>
+DELETE /applications/<application>?user=<username>
 
 Response Codes:
 200 - OK
+403 - Unauthorised user
 404 - Application not known
 500 - Server Error
 ````
+Username, who created the application should be passed. See [User Authentication](#user-authentication) section for more details
 
 ## Environment Endpoints API
 ### List environment variables known to the deployment manager
@@ -549,3 +558,4 @@ oozie.libpath                  /pnda/deployment/platform
 oozie.use.system.libpath       true
 user.name                      prod1
 ````
+
