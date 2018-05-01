@@ -25,7 +25,6 @@ either express or implied.
 import json
 import os
 import logging
-import platform
 from shutil import copy
 import deployer_utils
 from plugins.base_common import Common
@@ -46,8 +45,6 @@ class FlinkCreator(Common):
 
     def create_component(self, staged_component_path, application_name, user_name, component, properties):
         logging.debug("create_component: %s %s %s %s", application_name, user_name, json.dumps(component), properties)
-        distro = platform.dist()
-        usesSystemd = distro[0] in ('redhat', 'centos')
         remote_component_tmp_path = '%s/%s/%s' % (
             '/tmp/%s' % self._namespace, application_name, component['component_name'])
         remote_component_install_path = '%s/%s/%s' % (
@@ -83,15 +80,19 @@ class FlinkCreator(Common):
 
         this_dir = os.path.dirname(os.path.realpath(__file__))
         copy(os.path.join(this_dir, 'yarn-kill.py'), staged_component_path)
-        if usesSystemd:
-            service_script = 'flink.systemd.service.tpl' if java_app else 'flink.systemd.service.py.tpl'
-            service_script_install_path = '/usr/lib/systemd/system/%s.service' % service_name
+        service_script = 'flink.systemd.service.tpl' if java_app else 'flink.systemd.service.py.tpl'
+        service_script_install_path = '/usr/lib/systemd/system/%s.service' % service_name
+        if 'component_respawn_type' not in properties:
             if properties['component_flink_job_type'] == 'batch':
-                properties['respawn'] = '# Restart=always'
-                properties['respawn_limit'] = '# RestartSec=2'
+                properties['component_respawn_type'] = 'no'
             else:
-                properties['respawn'] = 'Restart=always'
-                properties['respawn_limit'] = 'RestartSec=2'
+                properties['component_respawn_type'] = 'always'
+        
+        if 'component_respawn_timeout_sec' not in properties:
+            if properties['component_flink_job_type'] == 'batch':
+                properties['component_respawn_timeout_sec'] = '0'
+            else:
+                properties['component_respawn_timeout_sec'] = '2'
 
         copy(os.path.join(this_dir, service_script), staged_component_path)
 
@@ -124,8 +125,7 @@ class FlinkCreator(Common):
         logging.debug("uninstall commands: %s", undo_commands)
 
         start_commands = []
-        if usesSystemd:
-            start_commands.append('sudo systemctl daemon-reload\n')
+        start_commands.append('sudo systemctl daemon-reload\n')
         start_commands.append('sudo service %s start\n' % service_name)
         logging.debug("start commands: %s", start_commands)
 
