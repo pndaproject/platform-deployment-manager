@@ -97,6 +97,9 @@ class OozieCreator(Creator):
         properties['oozie.use.system.libpath'] = 'true'
         # platform shared libs e.g. hbase
         properties['oozie.libpath'] = '/pnda/deployment/platform'
+        # For spark2 add a special setting to select spark2
+        if 'component_spark_version' in properties and properties['component_spark_version'] == '2':
+            properties['oozie.action.sharelib.for.spark'] = 'spark2'
 
         # insert default queue selection
         ret, res = commands.getstatusoutput('sudo -u %s %s' % (properties['application_user'], self._environment['queue_policy']))
