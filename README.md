@@ -531,7 +531,7 @@ The following varibles are only injected for Spark streaming components. They ma
 ````
 component_spark_version            major version of spark to use. Only applicable to HDP clusters, when using CDH PNDA does not support side-by-side Spark frameworks and whatever version is run by the spark-submit command will be used.
 component_spark_submit_args        additional arguments to spark-submit
-component_respawn_type             whether to restart the process when it exits. Valid values are 'always' and 'no'.
+component_respawn_type             whether to restart the process when it exits. Valid values are always, no, on-success, on-failure, on-abnormal, on-watchdog or on-abort. Refer to the systemd documentation for more information about each of these.
 component_respawn_timeout_sec      used with component_respawn_type to set how long to wait (in seconds) before restarting the process when it exits.
 (java only) component_main_jar     the jar containing the job code
 (python only) component_main_py    the python file containing the job code
