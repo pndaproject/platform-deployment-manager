@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - PNDA-4525: Deprecate Ubuntu 14.04
 - PNDA-4511: Use a config property to set which spark-submit command to call for spark streaming components
 - PNDA-4398: Support Spark 2 for Oozie jobs
+- PNDA-4546: Accept username as a URL parameter instead of in the request body and apply basic authorisation so only the user who created an application (or a special admin user defined in the dm-config file) can modify it
 
 ### Fixed
 - PNDA-4218: Fix application deletion when app name is an HDFS username
