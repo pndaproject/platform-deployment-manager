@@ -59,7 +59,6 @@ Applications may be paused and restarted. This leaves all the installed componen
 
 Each Creator implements a specific set of steps to uninstall components of its associated type. The Creator is passed the application data associated with the package and component and uses this to execute those steps.
 
-
 # Requirements
 
 * [Maven](https://maven.apache.org/install.html)
@@ -358,22 +357,30 @@ Response Codes:
 
 ### Start _application_
 ````
-POST /applications/<application>/start
+POST /applications/<application>/start?user=<username>
 
 Response Codes:
 202 - Accepted, poll /applications/<application>/status for status
+403 - Unauthorised user
 404 - Application not known
 500 - Server Error
+
+Query Parameters:
+user - User with permisson to perform this action on the application should be passed. 
 ````
 
 ### Stop _application_
 ````
-POST /applications/<application>/stop
+POST /applications/<application>/stop?user=<username>
 
 Response Codes:
 202 - Accepted, poll /applications/<application>/status for status
+403 - Unauthorised user
 404 - Application not known
 500 - Server Error
+
+Query Parameters:
+user - User with permisson to perform this action on the application should be passed. 
 ````
 
 ### Get full information for _application_
@@ -419,9 +426,8 @@ Example response:
 ### Create _application_ from _package_
 
 ````
-PUT /applications/<application>
+PUT /applications/<application>?user=<username>
 {
-	"user": "<username>",
 	"package": "<package>",
 	"<componentType>": {
 		"<componentName>": {
@@ -437,9 +443,11 @@ Response Codes:
 409 - Application already exists
 500 - Server Error
 
+Query Parameters:
+user - User creating this application should be passed.
+
 Example body:
 {
-	"user": "somebody",
 	"package": "<package>",
 	"oozie": {
 		"example": {
@@ -448,17 +456,21 @@ Example body:
 	}
 }
 
-Package and user are mandatory, property settings are optional
+Package is mandatory, property settings are optional
 ````
 
 ### Destroy _application_
 ````
-DELETE /applications/<application>
+DELETE /applications/<application>?user=<username>
 
 Response Codes:
 200 - OK
+403 - Unauthorised user
 404 - Application not known
 500 - Server Error
+
+Query Parameters:
+user - User with permisson to perform this action on the application should be passed.
 ````
 
 ## Environment Endpoints API
@@ -557,3 +569,4 @@ oozie.libpath                  /pnda/deployment/platform
 oozie.use.system.libpath       true
 user.name                      prod1
 ````
+
