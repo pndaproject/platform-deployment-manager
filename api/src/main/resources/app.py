@@ -224,7 +224,7 @@ class ApplicationsHandler(BaseHandler):
 class ApplicationDetailHandler(BaseHandler):
     @asynchronous
     def post(self, name, action):
-        user_name = self.get_argument("user")
+        user_name = self.get_argument("user.name")
         def do_call():
             if action == 'start':
                 dm.start_application(name, user_name)
@@ -270,9 +270,9 @@ class ApplicationHandler(BaseHandler):
             return
 
         if 'user' in request_body:
-            self.send_client_error("Invalid request body. User should be passed in URI")
+            self.send_client_error("Invalid request body. User should be passed as URI parameter user.name")
             return
-        user_name = self.get_argument("user")
+        user_name = self.get_argument("user.name")
         def do_call():
             request_body.update({'user': user_name})
             dm.create_application(request_body['package'], aname, request_body)
@@ -289,7 +289,7 @@ class ApplicationHandler(BaseHandler):
 
     @asynchronous
     def delete(self, name):
-        user_name = self.get_argument("user")
+        user_name = self.get_argument("user.name")
         def do_call():
             dm.delete_application(name, user_name)
             self.send_accepted()

@@ -357,7 +357,7 @@ Response Codes:
 
 ### Start _application_
 ````
-POST /applications/<application>/start?user=<username>
+POST /applications/<application>/start?user.name=<username>
 
 Response Codes:
 202 - Accepted, poll /applications/<application>/status for status
@@ -371,7 +371,7 @@ user - User with permisson to perform this action on the application should be p
 
 ### Stop _application_
 ````
-POST /applications/<application>/stop?user=<username>
+POST /applications/<application>/stop?user.name=<username>
 
 Response Codes:
 202 - Accepted, poll /applications/<application>/status for status
@@ -426,7 +426,7 @@ Example response:
 ### Create _application_ from _package_
 
 ````
-PUT /applications/<application>?user=<username>
+PUT /applications/<application>?user.name=<username>
 {
 	"package": "<package>",
 	"<componentType>": {
@@ -461,7 +461,7 @@ Package is mandatory, property settings are optional
 
 ### Destroy _application_
 ````
-DELETE /applications/<application>?user=<username>
+DELETE /applications/<application>?user.name=<username>
 
 Response Codes:
 200 - OK
