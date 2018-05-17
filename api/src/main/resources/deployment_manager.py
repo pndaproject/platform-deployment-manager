@@ -27,9 +27,12 @@ import time
 import datetime
 import threading
 import traceback
+import grp
+import pwd
 import requests
 
 import application_creator
+import authorizer_local
 from exceptiondef import ConflictingState, NotFound, Forbidden
 from package_parser import PackageParser
 from async_dispatcher import AsyncDispatcher
@@ -39,6 +42,23 @@ from lifecycle_states import ApplicationState, PackageDeploymentState
 def milli_time():
     return int(round(time.time() * 1000))
 
+class Resources(object):
+    ENVIRONMENT = "deployment_manager:environment"
+    PACKAGE = "deployment_manager:package"
+    PACKAGES = "deployment_manager:packages"
+    APPLICATION = "deployment_manager:application"
+    APPLICATIONS = "deployment_manager:applications"
+    REPOSITORY = "deployment_manager:repository"
+
+
+class Actions(object):
+    DEPLOY = "deploy"
+    UNDEPLOY = "undeploy"
+    CREATE = "create"
+    START = "start"
+    STOP = "stop"
+    DESTROY = "destroy"
+    READ = "read"
 
 class DeploymentManager(object):
     def __init__(self, repository, package_registrar, application_registrar, application_summary_registrar, environment, config):
@@ -53,6 +73,8 @@ class DeploymentManager(object):
         self._package_parser = PackageParser()
         self._package_progress = {}
         self._lock = threading.RLock()
+        self._authorizer = authorizer_local.AuthorizerLocal()
+
         # load number of threads from config file:
         number_of_threads = self._config["deployer_thread_limit"]
         assert isinstance(number_of_threads, (int))
@@ -60,10 +82,28 @@ class DeploymentManager(object):
         self.dispatcher = AsyncDispatcher(num_threads=number_of_threads)
         self.rest_client = requests
 
-    def get_environment(self):
+    def _get_groups(self, user):
+        groups = []
+        if user:
+            groups = [g.gr_name for g in grp.getgrall() if user in g.gr_mem]
+            gid = pwd.getpwnam(user).pw_gid
+            groups.append(grp.getgrgid(gid).gr_name)
+        return groups
+
+    def _authorize(self, user_name, resource_type, resource_owner, action_name):
+        qualified_action = '%s:%s' % (resource_type, action_name)
+        identity = {'user': user_name, 'groups': self._get_groups(user_name)}
+        resource = {'type': resource_type, 'owner': resource_owner}
+        action = {'name': qualified_action}
+        if not self._authorizer.authorize(identity, resource, action):
+            raise Forbidden('User "%s" does not have authorization for "%s"' % (user_name, qualified_action))
+
+    def get_environment(self, user_name):
+        self._authorize(user_name, Resources.ENVIRONMENT, None, Actions.READ)
         return self._environment
 
-    def list_packages(self):
+    def list_packages(self, user_name):
+        self._authorize(user_name, Resources.PACKAGES, None, Actions.READ)
         logging.info('list_deployed')
         deployed = self._package_registrar.list_packages()
         return deployed
@@ -76,12 +116,37 @@ class DeploymentManager(object):
             else:
                 raise ConflictingState(json.dumps({'status': status}))
 
-    def list_repository(self, recency):
+    def list_repository(self, recency, user_name):
+        self._authorize(user_name, Resources.REPOSITORY, None, Actions.READ)
         logging.info("list_available: %s", recency)
         available = self._repository.get_package_list(recency)
         return available
 
-    def get_package_info(self, package):
+    def _get_saved_package_data(self, package):
+        package_owner = None
+        package_exists = False
+        package_metadata = None
+        if self._package_registrar.package_exists(package):
+            package_metadata = self._package_registrar.get_package_metadata(package)
+            print package_metadata
+            package_owner = package_metadata['metadata']['user']
+            package_exists = True
+        return package_owner, package_exists, package_metadata
+
+    def _get_package_owner(self, package):
+        package_owner, _, _ = self._get_saved_package_data(package)
+        return package_owner
+
+    def _get_application_owner(self, application):
+        application_owner = None
+        if self._application_registrar.application_has_record(application):
+            application_owner = self._application_registrar.get_application(application)['overrides']['user']
+        return application_owner
+
+    def get_package_info(self, package, user_name=None):
+        package_owner, package_exists, metadata = self._get_saved_package_data(package)
+        if user_name is not None:
+            self._authorize(user_name, Resources.PACKAGES, package_owner, Actions.READ)
         information = None
         progress_state = self._get_package_progress(package)
         if progress_state is not None:
@@ -97,8 +162,7 @@ class DeploymentManager(object):
                 status = deploy_status["state"]
                 information = deploy_status["information"]
             # check if package data exists in database:
-            if self._package_registrar.package_exists(package):
-                metadata = self._package_registrar.get_package_metadata(package)
+            if package_exists:
                 properties = self._package_parser.properties_from_metadata(metadata['metadata'])
                 status = PackageDeploymentState.DEPLOYED
                 name = metadata['name']
@@ -113,12 +177,13 @@ class DeploymentManager(object):
         ret = {"name": name,
                "version": version,
                "status": status,
+               "user": package_owner,
                "defaults": properties,
                "information": information}
 
         return ret
 
-    def _run_asynch_package_task(self, package_name, initial_state, working_state, task):
+    def _run_asynch_package_task(self, package_name, initial_state, working_state, task, auth_check):
         """
         Manages locks and state reporting for async background operations on packages
         :param package_name: The name of the package to operate on
@@ -129,6 +194,7 @@ class DeploymentManager(object):
         with self._lock:
             # check that package is in the right state before starting operation:
             self._assert_package_status(package_name, initial_state)
+            auth_check()
             # set the operation state before starting:
             self._set_package_progress(package_name, working_state)
 
@@ -148,7 +214,10 @@ class DeploymentManager(object):
         # run everything on a background thread:
         self.dispatcher.run_as_asynch(task=do_work_and_report_progress)
 
-    def deploy_package(self, package):
+    def deploy_package(self, package, user_name):
+        def auth_check():
+            self._authorize(user_name, Resources.PACKAGE, None, Actions.DEPLOY)
+
         # this function will be executed in the background:
         def _do_deploy():
             # if this value is not changed, then it is assumed that the operation never completed
@@ -161,7 +230,7 @@ class DeploymentManager(object):
                 # put package in database:
                 metadata = self._package_parser.get_package_metadata(package_data_path)
                 self._application_creator.validate_package(package, metadata)
-                self._package_registrar.set_package(package, package_data_path)
+                self._package_registrar.set_package(package, package_data_path, user_name)
                 # set the operation status as complete
                 deploy_status = {"state": PackageDeploymentState.DEPLOYED,
                                  "information": "Deployed " + package + " at " + self.utc_string()}
@@ -181,12 +250,17 @@ class DeploymentManager(object):
         self._run_asynch_package_task(package_name=package,
                                       initial_state=PackageDeploymentState.NOTDEPLOYED,
                                       working_state=PackageDeploymentState.DEPLOYING,
-                                      task=_do_deploy)
+                                      task=_do_deploy,
+                                      auth_check=auth_check)
 
     def utc_string(self):
         return datetime.datetime.utcnow().isoformat()
 
-    def undeploy_package(self, package):
+    def undeploy_package(self, package, user_name):
+        def auth_check():
+            package_owner = self._get_package_owner(package)
+            self._authorize(user_name, Resources.PACKAGE, package_owner, Actions.UNDEPLOY)
+
         # this function will be executed in the background:
         def do_undeploy():
             deploy_status = None
@@ -211,7 +285,8 @@ class DeploymentManager(object):
         self._run_asynch_package_task(package_name=package,
                                       initial_state=PackageDeploymentState.DEPLOYED,
                                       working_state=PackageDeploymentState.UNDEPLOYING,
-                                      task=do_undeploy)
+                                      task=do_undeploy,
+                                      auth_check=auth_check)
 
     def _set_package_progress(self, package_name, state):
         """
@@ -258,19 +333,23 @@ class DeploymentManager(object):
     def _mark_stopping(self, package):
         self._set_package_progress(package, ApplicationState.STOPPING)
 
-    def list_package_applications(self, package):
+    def list_package_applications(self, package, user_name):
+        self._authorize(user_name, Resources.APPLICATIONS, None, Actions.READ)
         logging.info('list_package_applications')
         applications = self._application_registrar.list_applications_for_package(package)
         return applications
 
-    def list_applications(self):
+    def list_applications(self, user_name):
+        self._authorize(user_name, Resources.APPLICATIONS, None, Actions.READ)
         logging.info('list_applications')
         applications = self._application_registrar.list_applications()
         return applications
 
-    def _assert_application_status(self, application, required_status, user_name):
+    def _assert_application_status(self, application, required_status):
+        logging.debug("Checking %s is %s", application, json.dumps(required_status))
         app_info = self.get_application_info(application)
         status = app_info['status']
+        logging.debug("Found %s is %s", application, status)
 
         if (isinstance(required_status, list) and status not in required_status) \
                 or (not isinstance(required_status, list) and status != required_status):
@@ -279,11 +358,7 @@ class DeploymentManager(object):
             else:
                 raise ConflictingState(json.dumps({'status': status}))
 
-        if status != ApplicationState.NOTCREATED:
-            created_user = app_info['overrides']['user']
-            if user_name != created_user and user_name != self._config["admin_user"]:
-                information = '%s is not authorized' % user_name
-                raise Forbidden(json.dumps({'information': information}))
+        logging.debug("Status for %s is OK", application)
 
     def _assert_application_exists(self, application):
         status = self.get_application_info(application)['status']
@@ -293,10 +368,12 @@ class DeploymentManager(object):
     def start_application(self, application, user_name):
         logging.info('start_application')
         with self._lock:
-            self._assert_application_status(application, ApplicationState.CREATED, user_name)
+            self._assert_application_status(application, ApplicationState.CREATED)
+            application_owner = self._get_application_owner(application)
+            self._authorize(user_name, Resources.APPLICATION, application_owner, Actions.START)
             self._mark_starting(application)
 
-        def do_work():
+        def do_work_start():
             try:
                 self._state_change_event_application(application)
                 try:
@@ -310,15 +387,17 @@ class DeploymentManager(object):
                 self._clear_package_progress(application)
                 self._state_change_event_application(application)
 
-        self.dispatcher.run_as_asynch(task=do_work)
+        self.dispatcher.run_as_asynch(task=do_work_start)
 
     def stop_application(self, application, user_name):
         logging.info('stop_application')
         with self._lock:
-            self._assert_application_status(application, ApplicationState.STARTED, user_name)
+            self._assert_application_status(application, ApplicationState.STARTED)
+            application_owner = self._get_application_owner(application)
+            self._authorize(user_name, Resources.APPLICATION, application_owner, Actions.STOP)
             self._mark_stopping(application)
 
-        def do_work():
+        def do_work_stop():
             try:
                 self._state_change_event_application(application)
                 try:
@@ -332,9 +411,13 @@ class DeploymentManager(object):
                 self._clear_package_progress(application)
                 self._state_change_event_application(application)
 
-        self.dispatcher.run_as_asynch(task=do_work)
+        self.dispatcher.run_as_asynch(task=do_work_stop)
 
-    def get_application_info(self, application):
+    def get_application_info(self, application, user_name=None):
+        if user_name is not None:
+            application_owner = self._get_application_owner(application)
+            self._authorize(user_name, Resources.APPLICATION, application_owner, Actions.READ)
+
         logging.info('get_application_info')
 
         if not self._application_registrar.application_has_record(application):
@@ -347,7 +430,10 @@ class DeploymentManager(object):
 
         return record
 
-    def get_application_detail(self, application):
+    def get_application_detail(self, application, user_name):
+        application_owner = self._get_application_owner(application)
+        self._authorize(user_name, Resources.APPLICATION, application_owner, Actions.READ)
+
         logging.info('get_application_detail')
         self._assert_application_exists(application)
         create_data = self._application_registrar.get_create_data(application)
@@ -356,24 +442,30 @@ class DeploymentManager(object):
         record['name'] = application
         return record
 
-    def get_application_summary(self, application):
+    def get_application_summary(self, application, user_name):
+        application_owner = self._get_application_owner(application)
+        self._authorize(user_name, Resources.APPLICATION, application_owner, Actions.READ)
+
         logging.info('get_application_summary')
         record = self._application_summary_registrar.get_summary_data(application)
         return record
 
-    def create_application(self, package, application, overrides):
+    def create_application(self, package, application, overrides, user_name):
         logging.info('create_application')
         package_data_path = None
 
         with self._lock:
-            self._assert_application_status(application, ApplicationState.NOTCREATED, overrides['user'])
+            self._assert_application_status(application, ApplicationState.NOTCREATED)
             self._assert_package_status(package, PackageDeploymentState.DEPLOYED)
+            package_owner = self._get_application_owner(package)
+            self._authorize(user_name, Resources.PACKAGE, package_owner, Actions.READ)
+            self._authorize(user_name, Resources.APPLICATION, None, Actions.CREATE)
             defaults = self.get_package_info(package)['defaults']
             package_data_path = self._package_registrar.get_package_data(package)
             self._application_registrar.create_application(package, application, overrides, defaults)
             self._mark_creating(application)
 
-        def do_work():
+        def do_work_create():
             try:
                 self._state_change_event_application(application)
                 try:
@@ -393,7 +485,7 @@ class DeploymentManager(object):
                 if package_data_path is not None:
                     os.remove(package_data_path)
 
-        self.dispatcher.run_as_asynch(task=do_work)
+        self.dispatcher.run_as_asynch(task=do_work_create)
 
     def _handle_application_error(self, application, ex, app_status, operation):
         """
@@ -413,10 +505,12 @@ class DeploymentManager(object):
     def delete_application(self, application, user_name):
         logging.info('delete_application')
         with self._lock:
-            self._assert_application_status(application, [ApplicationState.CREATED, ApplicationState.STARTED], user_name)
+            self._assert_application_status(application, [ApplicationState.CREATED, ApplicationState.STARTED])
+            application_owner = self._get_application_owner(application)
+            self._authorize(user_name, Resources.APPLICATION, application_owner, Actions.DESTROY)
             self._mark_destroying(application)
 
-        def do_work():
+        def do_work_delete():
             try:
                 self._state_change_event_application(application)
                 try:
@@ -430,7 +524,7 @@ class DeploymentManager(object):
                 self._clear_package_progress(application)
                 self._state_change_event_application(application)
 
-        self.dispatcher.run_as_asynch(task=do_work)
+        self.dispatcher.run_as_asynch(task=do_work_delete)
 
     def _state_change_event_application(self, name):
         endpoint_type = "application_callback"

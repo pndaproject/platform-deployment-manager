@@ -69,27 +69,29 @@ class BaseHandler(CorsMixin, tornado.web.RequestHandler):
             if isinstance(ex, NotFound):
                 logging.info(ex.msg)
                 self.set_status(404)
+                # Format already expected to be JSON when raised
                 self.finish(ex.msg)
             elif isinstance(ex, ConflictingState):
                 logging.info(ex.msg)
                 self.set_status(409)
+                # Format already expected to be JSON when raised
                 self.finish(ex.msg)
             elif isinstance(ex, FailedValidation):
                 logging.info(ex.msg)
                 self.set_status(400)
-                self.finish(ex.msg)
+                self.finish({"information": str(ex.msg)})
             elif isinstance(ex, Forbidden):
                 logging.info(ex.msg)
                 self.set_status(403)
-                self.finish(ex.msg)
+                self.finish({"information": str(ex.msg)})
             elif isinstance(ex, FailedCreation):
                 logging.info(ex.msg)
                 self.set_status(500)
-                self.finish(ex.msg)
+                self.finish({"information": str(ex.msg)})
             elif isinstance(ex, FailedConnection):
                 logging.info(ex.msg)
                 self.set_status(503)
-                self.finish(ex.msg)
+                self.finish({"information": str(ex.msg)})
             else:
                 self.set_status(500)
                 if "information" in str(ex):
@@ -137,7 +139,7 @@ class EnvironmentHandler(BaseHandler):
     @asynchronous
     def get(self):
         def do_call():
-            self.send_result(dm.get_environment())
+            self.send_result(dm.get_environment(self.get_argument("user.name", default='')))
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
 
@@ -151,7 +153,7 @@ class RepositoryHandler(BaseHandler):
             recency = 1
             if 'recency' in args:
                 recency = int(args['recency'][0])
-            self.send_result(dm.list_repository(recency))
+            self.send_result(dm.list_repository(recency, self.get_argument("user.name", default='')))
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
 
@@ -160,7 +162,7 @@ class PackagesHandler(BaseHandler):
     @asynchronous
     def get(self):
         def do_call():
-            self.send_result(dm.list_packages())
+            self.send_result(dm.list_packages(self.get_argument("user.name", default='')))
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
 
@@ -169,14 +171,14 @@ class PackageHandler(BaseHandler):
     @asynchronous
     def get(self, name):
         def do_call():
-            self.send_result(dm.get_package_info(name))
+            self.send_result(dm.get_package_info(name, self.get_argument("user.name", default='')))
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
 
     @asynchronous
     def put(self, name):
         def do_call():
-            dm.deploy_package(name)
+            dm.deploy_package(name, self.get_argument("user.name"))
             self.send_accepted()
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
@@ -184,7 +186,7 @@ class PackageHandler(BaseHandler):
     @asynchronous
     def delete(self, name):
         def do_call():
-            dm.undeploy_package(name)
+            dm.undeploy_package(name, self.get_argument("user.name"))
             self.send_accepted()
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
@@ -194,7 +196,7 @@ class PackageApplicationsHandler(BaseHandler):
     @asynchronous
     def get(self, name):
         def do_call():
-            self.send_result(dm.list_package_applications(name))
+            self.send_result(dm.list_package_applications(name, self.get_argument("user.name", default='')))
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
 
@@ -203,7 +205,7 @@ class PackageStatusHandler(BaseHandler):
     @asynchronous
     def get(self, name):
         def do_call():
-            package_info = dm.get_package_info(name)
+            package_info = dm.get_package_info(name, self.get_argument("user.name", default=''))
             self.send_result({
                 "status": package_info.get("status"),
                 "information": package_info.get("information", None)
@@ -216,7 +218,7 @@ class ApplicationsHandler(BaseHandler):
     @asynchronous
     def get(self):
         def do_call():
-            self.send_result(dm.list_applications())
+            self.send_result(dm.list_applications(self.get_argument("user.name", default='')))
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
 
@@ -241,16 +243,16 @@ class ApplicationDetailHandler(BaseHandler):
     def get(self, name, action):
         def do_call():
             if action == 'status':
-                app_info = dm.get_application_info(name)
+                app_info = dm.get_application_info(name, self.get_argument("user.name", default=''))
                 ret = {
                     "status": app_info["status"],
                     "information": app_info.get("information", None)
                 }
                 self.send_result(ret)
             elif action == 'detail':
-                self.send_result(dm.get_application_detail(name))
+                self.send_result(dm.get_application_detail(name, self.get_argument("user.name", default='')))
             elif action == 'summary':
-                self.send_result(dm.get_application_summary(name))
+                self.send_result(dm.get_application_summary(name, self.get_argument("user.name", default='')))
             else:
                 self.send_client_error("%s is not a valid query (status|detail|summary)" % action)
 
@@ -275,7 +277,7 @@ class ApplicationHandler(BaseHandler):
         user_name = self.get_argument("user.name")
         def do_call():
             request_body.update({'user': user_name})
-            dm.create_application(request_body['package'], aname, request_body)
+            dm.create_application(request_body['package'], aname, request_body, user_name)
             self.send_accepted()
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
@@ -283,7 +285,7 @@ class ApplicationHandler(BaseHandler):
     @asynchronous
     def get(self, name):
         def do_call():
-            self.send_result(dm.get_application_info(name))
+            self.send_result(dm.get_application_info(name, self.get_argument("user.name", default='')))
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
 

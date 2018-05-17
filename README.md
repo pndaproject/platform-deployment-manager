@@ -159,6 +159,7 @@ Example response:
 	"status": "DEPLOYED",
 	"version": "1.0.23",
 	"name": "spark-batch-example-app",
+	"user": "who-deployed-this",
 	"defaults": {
 		"oozie": {
 			"example": {
@@ -193,6 +194,7 @@ DELETE /packages/<package>
 
 Response Codes:
 202 - Accepted, poll /packages/<package>/status for status
+403 - Unauthorised user
 404 - Package not deployed
 500 - Server Error
 ````
