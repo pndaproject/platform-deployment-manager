@@ -46,6 +46,11 @@ class ApplicationCreator(object):
                                  environment['webhdfs_port'],
                                  'hdfs')
 
+    def assert_application_properties(self, override_properties, default_properties):
+        for component_type, component_properties in default_properties.iteritems():
+            creator = self._load_creator(component_type)
+            creator.assert_application_properties(override_properties.get(component_type, {}), component_properties)
+
     def create_application(self, package_data_path, package_metadata, application_name, property_overrides):
 
         logging.debug("create_application: %s", application_name)

@@ -87,7 +87,7 @@ class FlinkCreator(Common):
                 properties['component_respawn_type'] = 'no'
             else:
                 properties['component_respawn_type'] = 'always'
-        
+
         if 'component_respawn_timeout_sec' not in properties:
             if properties['component_flink_job_type'] == 'batch':
                 properties['component_respawn_timeout_sec'] = '0'

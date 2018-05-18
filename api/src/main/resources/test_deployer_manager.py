@@ -75,7 +75,7 @@ class DeploymentManagerTest(unittest.TestCase):
             'queue_policy': 'echo dev',
             'namespace': 'mockspace'
         }
-        self.mock_config = {"deployer_thread_limit": 1, 'stage_root': 'stage', 'plugins_path': 'plugins'}
+        self.mock_config = {"deployer_thread_limit": 1, 'stage_root': 'stage', 'plugins_path': 'plugins', 'oozie_spark_version': '1'}
         # mock app registrar:
         mock_application_registar = Mock()
         application_data = {}
@@ -934,4 +934,3 @@ class DeploymentManagerTest(unittest.TestCase):
             deployment_manager.start_application(self.test_app_name, 'username2')
 
         self.assertRaises(Forbidden, expect_exception)
-        

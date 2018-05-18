@@ -34,7 +34,7 @@ import requests
 
 import deployer_utils
 from plugins.base_creator import Creator
-from exceptiondef import FailedCreation
+from exceptiondef import FailedCreation, FailedValidation
 
 class OozieCreator(Creator):
 
@@ -47,6 +47,17 @@ class OozieCreator(Creator):
 
     def get_component_type(self):
         return 'oozie'
+
+    def assert_application_properties(self, override_properties, default_properties):
+        # Assert application properties before creating the application
+        for component in default_properties:
+            properties = default_properties[component].copy()
+            properties.update(override_properties.get(component, {}))
+            if 'spark_version' in properties and properties['spark_version'] != self._config['oozie_spark_version']:
+                information = "Mismatch between cluster's oozie spark version (version = %s) and \
+requested spark version" % self._config['oozie_spark_version']
+                raise FailedValidation(json.dumps({"information": information}))
+            properties = None
 
     def destroy_component(self, application_name, create_data):
         logging.debug(
@@ -98,7 +109,7 @@ class OozieCreator(Creator):
         # platform shared libs e.g. hbase
         properties['oozie.libpath'] = '/pnda/deployment/platform'
         # For spark2 add a special setting to select spark2
-        if 'component_spark_version' in properties and properties['component_spark_version'] == '2':
+        if self._config['oozie_spark_version'] == '2':
             properties['oozie.action.sharelib.for.spark'] = 'spark2'
 
         # insert default queue selection
