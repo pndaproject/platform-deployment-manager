@@ -48,7 +48,7 @@ class DeploymentManagerTest(unittest.TestCase):
         mock_repository = Mock()
         mock_package_registar = Mock()
         mock_package_registar.get_package_metadata = Mock(
-            return_value={"name": Mock(), "version": Mock(), "metadata": {"component_types": {}}})
+            return_value={"name": Mock(), "version": Mock(), "metadata": {"component_types": {}, "user": "username"}})
         package_status = {}
         mock_package_registar.get_package_deploy_status = lambda package: package_status.get(package, None)
         mock_package_registar.set_package_deploy_status = \
@@ -90,10 +90,10 @@ class DeploymentManagerTest(unittest.TestCase):
         self.test_package_name = "aPakageForTesting-1.0.0"
         self.test_app_name = "anAppForTesting"
 
+    def _mock_get_groups(self, _):
+        return []
+
     def test_undeploy_errors(self):
-        """
-        Tests asynchronous error reporting in the undeploy process.
-        """
         self.mock_package_registar.package_exists = Mock(return_value=True)
 
         # mock the package registrar:
@@ -106,6 +106,9 @@ class DeploymentManagerTest(unittest.TestCase):
             def _assert_package_status(self, package, required_status):
                 return True
 
+            def _get_groups(self, user):
+                return []
+
         deployment_manager = self._initialize_deployment_manager(DeploymentManagerWithLocalCallbacks)
         # mock status interface:
         on_complete = Event()
@@ -116,7 +119,7 @@ class DeploymentManagerTest(unittest.TestCase):
         def handle_package_state_change(package_name):
             try:
                 if package_name == self.test_package_name:
-                    info = deployment_manager.get_package_info(package_name)
+                    info = deployment_manager.get_package_info(package_name, 'username')
                     print "got async info: " + str(info)
                     # since we are testing for errors, the state needs to eventually change back to "deployed"
                     if info["status"] == PackageDeploymentState.DEPLOYED:
@@ -132,7 +135,7 @@ class DeploymentManagerTest(unittest.TestCase):
                     on_complete.set()
 
         # launch the asynch test
-        deployment_manager.undeploy_package(self.test_package_name)
+        deployment_manager.undeploy_package(self.test_package_name, 'username')
         # wait for test to finsish
         on_complete.wait(5)
         self.assertIsNotNone(test_result[0], "execution completed test")
@@ -158,6 +161,9 @@ class DeploymentManagerTest(unittest.TestCase):
             def _assert_package_status(self, package, required_status):
                 return True
 
+            def _get_groups(self, user):
+                return []
+
         deployment_manager = self._initialize_deployment_manager(DeploymentManagerWithLocalCallbacks)
         # mock status interface:
         on_complete = Event()
@@ -170,7 +176,7 @@ class DeploymentManagerTest(unittest.TestCase):
                                                                    deployment_manager)
 
         # launch the asynch test
-        deployment_manager.create_application(self.test_package_name, self.test_app_name, {'user': 'root'})
+        deployment_manager.create_application(self.test_package_name, self.test_app_name, {'user': 'root'}, 'root')
         # wait for test to finsish
         on_complete.wait(5)
         self.assertIsNotNone(test_result[0], "async task completed")
@@ -211,6 +217,9 @@ class DeploymentManagerTest(unittest.TestCase):
             def _assert_package_status(self, package, required_status):
                 return True
 
+            def _get_groups(self, user):
+                return []
+
         deployment_manager = self._initialize_deployment_manager(DeploymentManagerWithLocalCallbacks)
         # mock status interface:
         on_complete = Event()
@@ -249,12 +258,13 @@ class DeploymentManagerTest(unittest.TestCase):
                         }
                     }
                 },
-                "package_name": "test_package-1.0.3"
+                "package_name": "test_package-1.0.3",
+                "user": "username"
             }
         }
 
         with patch("__builtin__.open", mock_open(read_data="[]")):
-            deployment_manager.create_application(self.test_package_name, self.test_app_name, {'user': 'root'})
+            deployment_manager.create_application(self.test_package_name, self.test_app_name, {'user': 'root'}, 'root')
             # wait for test to finsish
             on_complete.wait(5)
             self.assertIsNotNone(test_result[0], "async task completed")
@@ -290,8 +300,8 @@ class DeploymentManagerTest(unittest.TestCase):
             """
             try:
                 if app_name == self.test_app_name:
-                    info = deployment_manager.get_application_info(app_name)
-                    print "got async info: " + str(info)
+                    info = deployment_manager.get_application_info(app_name, 'username')
+                    print "got async info2: " + str(info)
                     # since we are testing for errors, the state needs to eventually change back to "deployed"
                     app_status = info["status"]
                     # each time this function is called it expects a different status
@@ -330,6 +340,9 @@ class DeploymentManagerTest(unittest.TestCase):
             def _assert_package_status(self, package, required_status):
                 return True
 
+            def _get_groups(self, user):
+                return []
+
         deployment_manager = self._initialize_deployment_manager(DeploymentManagerWithLocalCallbacks)
         # mock status interface:
         on_complete = Event()
@@ -350,10 +363,6 @@ class DeploymentManagerTest(unittest.TestCase):
         self.assertTrue("Error starting" in info["information"], "expected error message in: " + str(info))
 
     def test_delete_application_errors(self):
-        """
-        Tests asynchronous error reporting in the delete-app process.
-        """
-
         self.mock_package_registar.package_exists = Mock(return_value=True)
         self.mock_package_registar.get_package_deploy_status = Mock(
             # return_value={"status":PackageDeploymentState.DEPLOYED}
@@ -368,6 +377,9 @@ class DeploymentManagerTest(unittest.TestCase):
 
             def _assert_package_status(self, package, required_status):
                 return True
+
+            def _get_groups(self, user):
+                return []
 
         deployment_manager = self._initialize_deployment_manager(DeploymentManagerWithLocalCallbacks)
         # mock status interface:
@@ -389,10 +401,6 @@ class DeploymentManagerTest(unittest.TestCase):
         self.assertTrue("Error deleting" in info["information"], "expected error message in: " + str(info))
 
     def test_stop_application_errors(self):
-        """
-        Tests asynchronous error reporting in the delete-app process.
-        """
-
         self.mock_package_registar.package_exists = Mock(return_value=True)
         self.mock_package_registar.get_package_deploy_status = Mock(
             # return_value={"status":PackageDeploymentState.DEPLOYED}
@@ -407,6 +415,9 @@ class DeploymentManagerTest(unittest.TestCase):
 
             def _assert_package_status(self, package, required_status):
                 return True
+
+            def _get_groups(self, user):
+                return []
 
         deployment_manager = self._initialize_deployment_manager(DeploymentManagerWithLocalCallbacks)
         # mock status interface:
@@ -428,10 +439,6 @@ class DeploymentManagerTest(unittest.TestCase):
         self.assertTrue("Error stopping" in info["information"], "expected error message in: " + str(info))
 
     def test_stop_application(self):
-        """
-        Tests asynchronous error reporting in the stop-app process.
-        """
-
         self.mock_package_registar.package_exists = Mock(return_value=True)
         self.mock_package_registar.get_package_deploy_status = Mock(
             # return_value={"status":PackageDeploymentState.DEPLOYED}
@@ -444,6 +451,9 @@ class DeploymentManagerTest(unittest.TestCase):
         class MockDeploymentManager(DeploymentManager):
             def create_mocks(self):
                 self._application_creator = Mock()
+
+            def _get_groups(self, user):
+                return []
 
         deployment_manager = self._initialize_deployment_manager(MockDeploymentManager)
         deployment_manager.create_mocks()
@@ -483,7 +493,7 @@ class DeploymentManagerTest(unittest.TestCase):
             self.assertIsNotNone(callback_url)
             try:
                 info = json
-                print "got async info: " + str(info)
+                print "got async info1: " + str(info)
                 # since we are testing for errors, the state needs to eventually change back to "deployed"
                 status = json["data"][0]["state"]
                 # each time this function is called it expects a different status
@@ -523,6 +533,9 @@ class DeploymentManagerTest(unittest.TestCase):
                     raise FailedValidation("Failed validation")
                 self._package_parser.get_package_metadata.side_effect = throwerr
 
+            def _get_groups(self, user):
+                return []
+
         deployment_manager = self._initialize_deployment_manager(MockDeploymentManager)
         deployment_manager.create_mocks()
         deployment_manager.rest_client = Mock()
@@ -536,7 +549,7 @@ class DeploymentManagerTest(unittest.TestCase):
         deployment_manager.rest_client.post = on_rest_callback
         self.mock_application_registar.set_application_status(self.test_app_name, ApplicationState.STARTED)
         # launch the asynch test
-        deployment_manager.deploy_package(self.test_package_name)
+        deployment_manager.deploy_package(self.test_package_name, 'username')
         # wait for test to finsish
         on_complete.wait(5)
         self.assertIsNotNone(test_result[0], "async task completed")
@@ -562,6 +575,9 @@ class DeploymentManagerTest(unittest.TestCase):
                 self._application_creator = Mock()
                 self._package_parser = Mock()
 
+            def _get_groups(self, user):
+                return []
+
         deployment_manager = self._initialize_deployment_manager(MockDeploymentManager)
         deployment_manager.create_mocks()
         deployment_manager.rest_client = Mock()
@@ -575,7 +591,7 @@ class DeploymentManagerTest(unittest.TestCase):
         deployment_manager.rest_client.post = on_rest_callback
         self.mock_application_registar.set_application_status(self.test_app_name, ApplicationState.STARTED)
         # launch the asynch test
-        deployment_manager.deploy_package(self.test_package_name)
+        deployment_manager.deploy_package(self.test_package_name, 'username')
         # wait for test to finsish
         on_complete.wait(5)
         self.assertIsNotNone(test_result[0], "async task completed")
@@ -598,8 +614,9 @@ class DeploymentManagerTest(unittest.TestCase):
                                  application_summary_registrar,
                                  environment,
                                  config)
+        dmgr._get_groups = self._mock_get_groups #pylint: disable =protected-access
 
-        self.assertEqual(dmgr.get_environment(), environment)
+        self.assertEqual(dmgr.get_environment('username'), environment)
 
     def test_list_packages(self):
         expected_packages = ['package-1.0.0', 'another-2.1.2']
@@ -618,8 +635,9 @@ class DeploymentManagerTest(unittest.TestCase):
                                  application_summary_registrar,
                                  environment,
                                  config)
+        dmgr._get_groups = self._mock_get_groups #pylint: disable =protected-access
 
-        self.assertEqual(dmgr.list_packages(), expected_packages)
+        self.assertEqual(dmgr.list_packages('username'), expected_packages)
 
     def test_list_repository(self):
         expected_packages = [{
@@ -651,8 +669,9 @@ class DeploymentManagerTest(unittest.TestCase):
                                  application_summary_registrar,
                                  environment,
                                  config)
+        dmgr._get_groups = self._mock_get_groups #pylint: disable =protected-access
 
-        self.assertEqual(dmgr.list_repository(1), expected_packages)
+        self.assertEqual(dmgr.list_repository(1, 'username'), expected_packages)
 
     def test_get_unknown_package_info(self):
         repository = Mock()
@@ -670,10 +689,12 @@ class DeploymentManagerTest(unittest.TestCase):
                                  application_summary_registrar,
                                  environment,
                                  config)
+        dmgr._get_groups = self._mock_get_groups #pylint: disable =protected-access
 
-        self.assertEqual(dmgr.get_package_info("something-1.0.0"), {
+        self.assertEqual(dmgr.get_package_info("something-1.0.0", 'username'), {
             'defaults': None,
             'information': None,
+            'user': None,
             'name': 'something',
             'status': PackageDeploymentState.NOTDEPLOYED,
             'version': '1.0.0'})
@@ -695,8 +716,9 @@ class DeploymentManagerTest(unittest.TestCase):
                                  application_summary_registrar,
                                  environment,
                                  config)
+        dmgr._get_groups = self._mock_get_groups #pylint: disable =protected-access
 
-        self.assertEqual(dmgr.list_package_applications("package"), expected_applications)
+        self.assertEqual(dmgr.list_package_applications("package", 'username'), expected_applications)
 
     def test_list_applications(self):
         expected_applications = ['app1', 'app2']
@@ -715,15 +737,16 @@ class DeploymentManagerTest(unittest.TestCase):
                                  application_summary_registrar,
                                  environment,
                                  config)
+        dmgr._get_groups = self._mock_get_groups #pylint: disable =protected-access
 
-        self.assertEqual(dmgr.list_applications(), expected_applications)
+        self.assertEqual(dmgr.list_applications('username'), expected_applications)
 
     def test_application_in_progress(self):
         repository = Mock()
         package_registrar = Mock()
         application_registrar = Mock()
         application_registrar.get_application.return_value = {
-            'overrides': {},
+            'overrides': {'user': 'username'},
             'defaults': {},
             'name': 'name',
             'package_name': 'package_name',
@@ -739,6 +762,7 @@ class DeploymentManagerTest(unittest.TestCase):
                                  application_summary_registrar,
                                  environment,
                                  config)
+        dmgr._get_groups = self._mock_get_groups #pylint: disable =protected-access
 
         self.assertRaises(ConflictingState, dmgr.start_application, "name", 'username')
 
@@ -747,6 +771,10 @@ class DeploymentManagerTest(unittest.TestCase):
         package_registrar = Mock()
         application_registrar = Mock()
         application_summary_registrar = Mock()
+        package_registrar.package_exists.return_value = True
+        package_registrar.get_package_metadata.return_value = {
+            'metadata': {'user': 'username'}
+        }
         environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
         config = {"deployer_thread_limit": 10, 'admin_user':'username'}
 
@@ -761,8 +789,9 @@ class DeploymentManagerTest(unittest.TestCase):
                                        environment,
                                        config)
         dmgr.set_package_progress("name", PackageDeploymentState.DEPLOYING)
+        dmgr._get_groups = self._mock_get_groups #pylint: disable =protected-access
 
-        self.assertRaises(ConflictingState, dmgr.undeploy_package, "name")
+        self.assertRaises(ConflictingState, dmgr.undeploy_package, "name", "username")
 
     def test_package_not_exists(self):
         repository = Mock()
@@ -779,8 +808,9 @@ class DeploymentManagerTest(unittest.TestCase):
                                  application_summary_registrar,
                                  environment,
                                  config)
+        dmgr._get_groups = self._mock_get_groups #pylint: disable =protected-access
 
-        self.assertRaises(NotFound, dmgr.undeploy_package, "name")
+        self.assertRaises(NotFound, dmgr.undeploy_package, "name", "username")
 
     @patch('deployment_manager.application_creator.ApplicationCreator')
     def test_get_application_detail(self, app_mock):
@@ -791,7 +821,7 @@ class DeploymentManagerTest(unittest.TestCase):
         application_registrar.get_create_data.return_value = {}
         application_registrar.application_has_record.return_value = True
         application_registrar.get_application.return_value = {
-            'overrides': {},
+            'overrides': {'user': 'username'},
             'defaults': {},
             'name': 'name',
             'package_name': 'package_name',
@@ -807,8 +837,9 @@ class DeploymentManagerTest(unittest.TestCase):
                                  application_summary_registrar,
                                  environment,
                                  config)
+        dmgr._get_groups = self._mock_get_groups #pylint: disable =protected-access
 
-        self.assertEqual(dmgr.get_application_detail('name'), {'name': 'name', 'status': ApplicationState.STARTED, 'yarn_ids': []})
+        self.assertEqual(dmgr.get_application_detail('name', 'username'), {'name': 'name', 'status': ApplicationState.STARTED, 'yarn_ids': []})
 
     @patch('deployment_manager.application_creator.ApplicationCreator')
     def test_fail_get_detail(self, app_mock):
@@ -819,7 +850,7 @@ class DeploymentManagerTest(unittest.TestCase):
         application_registrar.get_create_data.return_value = {}
         application_registrar.application_has_record.return_value = True
         application_registrar.get_application.return_value = {
-            'overrides': {},
+            'overrides': {'user': 'username'},
             'defaults': {},
             'name': 'name',
             'package_name': 'package_name',
@@ -835,8 +866,9 @@ class DeploymentManagerTest(unittest.TestCase):
                                  application_summary_registrar,
                                  environment,
                                  config)
+        dmgr._get_groups = self._mock_get_groups #pylint: disable =protected-access
 
-        self.assertRaises(NotFound, dmgr.get_application_detail, 'name')
+        self.assertRaises(NotFound, dmgr.get_application_detail, 'name', 'username')
 
     def test_get_application_summary(self):
         repository = Mock()
@@ -847,6 +879,14 @@ class DeploymentManagerTest(unittest.TestCase):
             'aggregate_status': 'COMPLETED_WITH_NO_FAILURES',
             'component-1': {}
         }}
+        application_registrar.application_has_record.return_value = True
+        application_registrar.get_application.return_value = {
+            'overrides': {'user': 'username'},
+            'defaults': {},
+            'name': 'name',
+            'package_name': 'package_name',
+            'status': ApplicationState.NOTCREATED,
+            'information': None}
         environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
         config = {"deployer_thread_limit": 10}
 
@@ -856,30 +896,42 @@ class DeploymentManagerTest(unittest.TestCase):
                                  application_summary_registrar,
                                  environment,
                                  config)
+        dmgr._get_groups = self._mock_get_groups #pylint: disable =protected-access
 
-        self.assertEqual(dmgr.get_application_summary('name'), {'name':{'aggregate_status': 'COMPLETED_WITH_NO_FAILURES', 'component-1': {}}})
+        self.assertEqual(dmgr.get_application_summary('name', 'username'), {'name':{'aggregate_status': 'COMPLETED_WITH_NO_FAILURES', 'component-1': {}}})
 
     def test_unauthorized_user_start(self):
-        repository = Mock()
-        package_registrar = Mock()
-        application_registrar = Mock()
-        application_registrar.get_application.return_value = {
-            'overrides': {"user":"user2"},
-            'defaults': {},
-            'name': 'name',
-            'package_name': 'package_name',
-            'status': ApplicationState.CREATED,
-            'information': None}
-        application_registrar.get_application_user.return_value = 'user2'
-        application_summary_registrar = Mock()
-        environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
-        config = {"deployer_thread_limit": 10, "admin_user": "admin"}
+        self.mock_package_registar.package_exists = Mock(return_value=True)
+        self.mock_package_registar.get_package_deploy_status = Mock(
+            return_value=None
+        )
 
-        dmgr = DeploymentManager(repository,
-                                 package_registrar,
-                                 application_registrar,
-                                 application_summary_registrar,
-                                 environment,
-                                 config)
+        application_callback_name = "application_callback"
+        self.mock_config[application_callback_name] = application_callback_name
 
-        self.assertRaises(Forbidden, dmgr.start_application, "name", 'user1')
+        class MockDeploymentManager(DeploymentManager):
+            def create_mocks(self):
+                self._application_creator = Mock()
+
+            def _get_groups(self, user):
+                return []
+
+        deployment_manager = self._initialize_deployment_manager(MockDeploymentManager)
+        deployment_manager.create_mocks()
+        deployment_manager.rest_client = Mock()
+        # mock status interface:
+        on_complete = Event()
+        # holds the result of the test, false if test has not finished yet:
+        test_result = [[]]
+        on_rest_callback = self._create_rest_callback_verifier(expected_statuses=["STARTING", "CREATED"],
+                                                               on_complete=on_complete, test_result=test_result)
+        deployment_manager.rest_client.post = on_rest_callback
+
+        # launch the asynch test
+        self.mock_application_registar.set_application_status(self.test_app_name, "CREATED")
+
+        def expect_exception():
+            deployment_manager.start_application(self.test_app_name, 'username2')
+
+        self.assertRaises(Forbidden, expect_exception)
+        

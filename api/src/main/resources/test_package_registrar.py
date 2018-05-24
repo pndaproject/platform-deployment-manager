@@ -45,7 +45,7 @@ class GenerateRecord(unittest.TestCase):
                                 "property2": "two"}},
                         "component_path": "test_package-1.0.2/sparkStreaming/componentC",
                         "component_name": "componentC"}}},
-            "package_name": "test_package-1.0.2"}
+            "user": "username", "package_name": "test_package-1.0.2"}
 
         package_data_path = '/pnda/system/deployment-manager/packages/test_package-1.0.2'
 
@@ -71,11 +71,13 @@ class GenerateRecord(unittest.TestCase):
         registrar = HbasePackageRegistrar('1.2.3.4', None, None, None, None)
         registrar._hdfs_client = Mock()
         with patch("__builtin__.open", mock_open(read_data="1234")):
-            registrar.set_package('name', 'abcd')
+            registrar.set_package('name', 'abcd', 'username')
 
         hbase_mock.return_value.table.return_value.put.assert_called_once_with(
             'a-1',
-            {'cf:metadata': '{"package_name": "a-1"}', 'cf:package_data': '/pnda/system/deployment-manager/packages/a-1', 'cf:name': 'a', 'cf:version': '1'})
+            {'cf:metadata': '{"user": "username", "package_name": "a-1"}',
+             'cf:package_data': '/pnda/system/deployment-manager/packages/a-1',
+             'cf:name': 'a', 'cf:version': '1'})
 
     @patch('happybase.Connection')
     def test_set_package_deploy_status(self, hbase_mock):

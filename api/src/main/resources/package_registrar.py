@@ -67,9 +67,10 @@ class HbasePackageRegistrar(object):
             finally:
                 connection.close()
 
-    def set_package(self, package_name, package_data_path):
+    def set_package(self, package_name, package_data_path, user):
         logging.debug("Storing %s", package_name)
         metadata = self._parser.get_package_metadata(package_data_path)
+        metadata['user'] = user
         key, data = self.generate_record(metadata)
         self._write_to_hdfs(package_data_path, data['cf:package_data'])
         self._write_to_db(key, data)
