@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### Added
+- PNDA-4560: Add authorization framework and authorize all API calls
 
 ### Changed
 - PNDA-4405: Require user and package fields in create application API
