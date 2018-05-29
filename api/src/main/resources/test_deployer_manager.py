@@ -75,7 +75,7 @@ class DeploymentManagerTest(unittest.TestCase):
             'queue_policy': 'echo dev',
             'namespace': 'mockspace'
         }
-        self.mock_config = {"deployer_thread_limit": 1, 'stage_root': 'stage', 'plugins_path': 'plugins', 'admin_user': 'username'}
+        self.mock_config = {"deployer_thread_limit": 1, 'stage_root': 'stage', 'plugins_path': 'plugins'}
         # mock app registrar:
         mock_application_registar = Mock()
         application_data = {}
@@ -754,7 +754,7 @@ class DeploymentManagerTest(unittest.TestCase):
             'information': None}
         application_summary_registrar = Mock()
         environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
-        config = {"deployer_thread_limit": 10, 'admin_user':'username'}
+        config = {"deployer_thread_limit": 10}
 
         dmgr = DeploymentManager(repository,
                                  package_registrar,
@@ -776,7 +776,7 @@ class DeploymentManagerTest(unittest.TestCase):
             'metadata': {'user': 'username'}
         }
         environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
-        config = {"deployer_thread_limit": 10, 'admin_user':'username'}
+        config = {"deployer_thread_limit": 10}
 
         class DeploymentManagerTester(DeploymentManager):
             def set_package_progress(self, package, state):
@@ -801,7 +801,7 @@ class DeploymentManagerTest(unittest.TestCase):
         application_registrar = Mock()
         application_summary_registrar = Mock()
         environment = {"namespace": "some_namespace", 'webhdfs_host': 'webhdfshost', 'webhdfs_port': 'webhdfsport'}
-        config = {"deployer_thread_limit": 10, 'admin_user':'username'}
+        config = {"deployer_thread_limit": 10}
         dmgr = DeploymentManager(repository,
                                  package_registrar,
                                  application_registrar,
