@@ -85,9 +85,12 @@ class DeploymentManager(object):
     def _get_groups(self, user):
         groups = []
         if user:
-            groups = [g.gr_name for g in grp.getgrall() if user in g.gr_mem]
-            gid = pwd.getpwnam(user).pw_gid
-            groups.append(grp.getgrgid(gid).gr_name)
+            try:
+                groups = [g.gr_name for g in grp.getgrall() if user in g.gr_mem]
+                gid = pwd.getpwnam(user).pw_gid
+                groups.append(grp.getgrgid(gid).gr_name)
+            except:
+                raise Forbidden('Failed to find details for user "%s"' % user)
         return groups
 
     def _authorize(self, user_name, resource_type, resource_owner, action_name):
@@ -119,7 +122,7 @@ class DeploymentManager(object):
     def list_repository(self, recency, user_name):
         self._authorize(user_name, Resources.REPOSITORY, None, Actions.READ)
         logging.info("list_available: %s", recency)
-        available = self._repository.get_package_list(recency)
+        available = self._repository.get_package_list(user_name, recency)
         return available
 
     def _get_saved_package_data(self, package):
@@ -226,7 +229,7 @@ class DeploymentManager(object):
                 package_file = package + '.tar.gz'
                 logging.info("deploy: %s", package)
                 # download package:
-                package_data_path = self._repository.get_package(package_file)
+                package_data_path = self._repository.get_package(package_file, user_name)
                 # put package in database:
                 metadata = self._package_parser.get_package_metadata(package_data_path)
                 self._application_creator.validate_package(package, metadata)
