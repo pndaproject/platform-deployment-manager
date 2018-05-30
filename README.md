@@ -96,11 +96,15 @@ To build the Deployment Manager, change to the `api` directory, which contains t
 
 ?recency=n may be used to control how many versions of each package are listed, by default recency=1
 ````
-GET /repository/packages
+GET /repository/packages?user.name=<username>
 
 Response Codes:
 200 - OK
+403 - Unauthorised user
 500 - Server Error
+
+Query Parameters:
+user.name - User name to run this command as. Should have permissions to perform the action as defined in authorizer_rules.yaml. 
 
 Example response:
 [
@@ -118,11 +122,15 @@ Example response:
 
 ### List packages currently deployed to the cluster
 ````
-GET /packages
+GET /packages?user.name=<username>
 
 Response Codes:
 200 - OK
+403 - Unauthorised user
 500 - Server Error
+
+Query Parameters:
+user.name - User name to run this command as. Should have permissions to perform the action as defined in authorizer_rules.yaml. 
 
 Example response:
 ["spark-batch-example-app-1.0.23"]
@@ -130,11 +138,15 @@ Example response:
 
 ### Get the status for _package_
 ````
-GET /packages/<package>/status
+GET /packages/<package>/status?user.name=<username>
 
 Response Codes:
 200 - OK
+403 - Unauthorised user
 500 - Server Error
+
+Query Parameters:
+user.name - User name to run this command as. Should have permissions to perform the action as defined in authorizer_rules.yaml. 
 
 Example response:
 {"status": "DEPLOYED", "information": "human readable error message or other information about this status"}
@@ -148,11 +160,15 @@ UNDEPLOYING
 
 ### Get full information for _package_
 ````
-GET /packages/<package>
+GET /packages/<package>?user.name=<username>
 
 Response Codes:
 200 - OK
+403 - Unauthorised user
 500 - Server Error
+
+Query Parameters:
+user.name - User name to run this command as. Should have permissions to perform the action as defined in authorizer_rules.yaml. 
 
 Example response:
 {
@@ -179,35 +195,46 @@ Example response:
 
 ### Deploy _package_ to the cluster
 ````
-PUT /packages/<package>
+PUT /packages/<package>?user.name=<username>
 
 Response Codes:
 202 - Accepted, poll /packages/<package>/status for status
+403 - Unauthorised user
 404 - Package not found in repository
 409 - Package already deployed
 500 - Server Error
+
+Query Parameters:
+user.name - User name to run this command as. Should have permissions to perform the action as defined in authorizer_rules.yaml. 
 ````
 
 ### Undeploy _package_ from the cluster
 ````
-DELETE /packages/<package>
+DELETE /packages/<package>?user.name=<username>
 
 Response Codes:
 202 - Accepted, poll /packages/<package>/status for status
 403 - Unauthorised user
 404 - Package not deployed
 500 - Server Error
+
+Query Parameters:
+user.name - User name to run this command as. Should have permissions to perform the action as defined in authorizer_rules.yaml. 
 ````
 
 ## Applications API
 
 ### List all applications
 ````
-GET /applications
+GET /applications?user.name=<username>
 
 Response Codes:
 200 - OK
+403 - Unauthorised user
 500 - Server Error
+
+Query Parameters:
+user.name - User name to run this command as. Should have permissions to perform the action as defined in authorizer_rules.yaml. 
 
 Example response:
 ["spark-batch-example-app-instance"]
@@ -215,11 +242,15 @@ Example response:
 
 ### List applications that have been created from _package_
 ````
-GET /packages/<package>/applications
+GET /packages/<package>/applications?user.name=<username>
 
 Response Codes:
 200 - OK
+403 - Unauthorised user
 500 - Server Error
+
+Query Parameters:
+user.name - User name to run this command as. Should have permissions to perform the action as defined in authorizer_rules.yaml. 
 
 Example response:
 ["spark-batch-example-app-instance"]
@@ -227,12 +258,16 @@ Example response:
 
 ### Get the status for _application_
 ````
-GET /applications/<application>/status
+GET /applications/<application>/status?user.name=<username>
 
 Response Codes:
 200 - OK
+403 - Unauthorised user
 404 - Application not known
 500 - Server Error
+
+Query Parameters:
+user.name - User name to run this command as. Should have permissions to perform the action as defined in authorizer_rules.yaml. 
 
 Example response:
 {"status": "STARTED", "information": "human readible error message or other information about this status"}
@@ -249,12 +284,16 @@ DESTROYING
 
 ### Get run-time details for _application_
 ````
-GET /applications/<application>/detail
+GET /applications/<application>/detail?user.name=<username>
 
 Response Codes:
 200 - OK
+403 - Unauthorised user
 404 - Application not known
 500 - Server Error
+
+Query Parameters:
+user.name - User name to run this command as. Should have permissions to perform the action as defined in authorizer_rules.yaml. 
 
 {
         "yarn_applications": {
@@ -274,12 +313,16 @@ Response Codes:
 
 ### Get the summary status for _application_
 ````
-GET /applications/<application>/summary
+GET /applications/<application>/summary?user.name=<username>
 
 Response Codes:
 200 - OK
+403 - Unauthorised user
 404 - Application not known
 500 - Server Error
+
+Query Parameters:
+user.name - User name to run this command as. Should have permissions to perform the action as defined in authorizer_rules.yaml. 
 ````
 
 ### Summary status in case of oozie component
@@ -368,7 +411,7 @@ Response Codes:
 500 - Server Error
 
 Query Parameters:
-user - User with permisson to perform this action on the application should be passed. 
+user.name - User name to run this command as. Should have permissions to perform the action as defined in authorizer_rules.yaml. 
 ````
 
 ### Stop _application_
@@ -382,17 +425,21 @@ Response Codes:
 500 - Server Error
 
 Query Parameters:
-user - User with permisson to perform this action on the application should be passed. 
+user.name - User name to run this command as. Should have permissions to perform the action as defined in authorizer_rules.yaml. 
 ````
 
 ### Get full information for _application_
 ````
-GET /applications/<application>
+GET /applications/<application>?user.name=<username>
 
 Response Codes:
 200 - OK
+403 - Unauthorised user
 404 - Application not known
 500 - Server Error
+
+Query Parameters:
+user.name - User name to run this command as. Should have permissions to perform the action as defined in authorizer_rules.yaml. 
 
 Example response:
 {
@@ -441,12 +488,13 @@ PUT /applications/<application>?user.name=<username>
 Response Codes:
 202 - Accepted, poll /applications/<application>/status for status
 400 - Request body failed validation
+403 - Unauthorised user
 404 - Package not found
 409 - Application already exists
 500 - Server Error
 
 Query Parameters:
-user - User creating this application should be passed.
+user.name - User name to run this command as. Should have permissions to perform the action as defined in authorizer_rules.yaml. 
 
 Example body:
 {
@@ -472,17 +520,21 @@ Response Codes:
 500 - Server Error
 
 Query Parameters:
-user - User with permisson to perform this action on the application should be passed.
+user.name - User name to run this command as. Should have permissions to perform the action as defined in authorizer_rules.yaml. 
 ````
 
 ## Environment Endpoints API
 ### List environment variables known to the deployment manager
 ````
-GET /environment/endpoints
+GET /environment/endpoints?user.name=<username>
 
 Response Codes:
 200 - OK
+403 - Unauthorised user
 500 - Server Error
+
+Query Parameters:
+user.name - User name to run this command as. Should have permissions to perform the action as defined in authorizer_rules.yaml. 
 
 Example response:
 {"zookeeper_port": "2181", "cluster_root_user": "cloud-user", ... }

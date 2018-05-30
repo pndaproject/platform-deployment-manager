@@ -47,7 +47,7 @@ class PackageRepoRestClient(object):
         logging.debug("response code: %s", str(response.status_code))
         assert response.status_code == 200
 
-    def get_package(self, package_name, expected_codes=None):
+    def get_package(self, package_name, user_name, expected_codes=None):
         """
         gets a package from the repository
         :param package_nam:
@@ -55,19 +55,19 @@ class PackageRepoRestClient(object):
         """
         if not expected_codes:
             expected_codes = [200]
-        response = self.make_rest_get_request("/packages/" + package_name, expected_codes)
+        response = self.make_rest_get_request("/packages/%s?user.name=%s" % (package_name, user_name), expected_codes)
         local_path = "%s/%s" % (self._package_local_dir_path, package_name)
         with open(local_path, 'wb') as local_file:
             local_file.write(response.content)
         return local_path
 
-    def get_package_list(self, recency=None):
+    def get_package_list(self, user_name, recency=None):
         """
         :return: a list of all packages in the repository
         """
-        url = "/packages"
+        url = "/packages?user.name=%s" % user_name
         if recency:
-            url = url + "?recency=" + str(recency)
+            url = url + "&recency=" + str(recency)
         response = self.make_rest_get_request(url)
         return json.loads(response.content)
 
