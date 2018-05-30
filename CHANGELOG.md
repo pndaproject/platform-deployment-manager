@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 ### Added
 - PNDA-4560: Add authorization framework and authorize all API calls
+- PNDA-4562: Supply user.name when calling package repository
 
 ### Changed
 - PNDA-4405: Require user and package fields in create application API
@@ -13,6 +14,7 @@ All notable changes to this project will be documented in this file.
 - PNDA-4398: Support Spark 2 for Oozie jobs
 - PNDA-4546: Accept username as a URL parameter instead of in the request body and apply basic authorisation so only the user who created an application (or a special admin user defined in the dm-config file) can modify it
 - PNDA-4613: Rename user parameter for deployment manager API from user to user.name to match the default knox behaviour
+- PNDA-4560: Remove admin_user setting from unit tests
 
 ### Fixed
 - PNDA-4218: Fix application deletion when app name is an HDFS username
