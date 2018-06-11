@@ -1,7 +1,9 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.0.1] 2018-06-11
+### Fixed
+- PNDA-4511: Make spark-submit a configurable cli
 
 ## [1.0.0] 2018-02-10
 ### Added:
