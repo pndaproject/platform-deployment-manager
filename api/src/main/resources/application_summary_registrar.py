@@ -94,6 +94,16 @@ class HBaseAppplicationSummary(object):
             connection.close()
         return status, timestamp
 
+    def get_flink_job_id(self, key):
+        jid = ''
+        data = self._read_from_db(key)
+        if data:
+            data = json.loads(data['cf:component_data'])
+            for component in data:
+                if 'flink' in component:
+                    jid = str(data[component]['information'].get('flinkJid', ''))
+        return jid
+
     def get_summary_data(self, application):
         record = {application: {}}
         dm_data = self.get_dm_data(application)
