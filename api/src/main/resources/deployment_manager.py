@@ -464,6 +464,7 @@ class DeploymentManager(object):
             self._authorize(user_name, Resources.PACKAGE, package_owner, Actions.READ)
             self._authorize(user_name, Resources.APPLICATION, None, Actions.CREATE)
             defaults = self.get_package_info(package)['defaults']
+            self._application_creator.assert_application_properties(overrides, defaults)
             package_data_path = self._package_registrar.get_package_data(package)
             self._application_registrar.create_application(package, application, overrides, defaults)
             self._mark_creating(application)

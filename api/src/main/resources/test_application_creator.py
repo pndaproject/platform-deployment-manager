@@ -31,7 +31,7 @@ from exceptiondef import FailedValidation, FailedCreation
 class ApplicationCreatorTests(unittest.TestCase):
 
     user = getpass.getuser()
-    config = {'stage_root': 'stage', 'plugins_path': 'plugins'}
+    config = {'stage_root': 'stage', 'plugins_path': 'plugins', 'oozie_spark_version': '1'}
     environment = {
         'webhdfs_host': 'webhdfshost',
         'webhdfs_port': 'webhdfsport',
@@ -239,10 +239,27 @@ class ApplicationCreatorTests(unittest.TestCase):
             def json(self):
                 return {'id': 'someid'}
 
+        default_properties = {
+            "oozie": {
+                "componentA": {
+                    "spark_version": "1"
+                }
+            }
+        }
+        override_properties = {
+            "user": "root",
+            "oozie": {
+                "componentA": {
+                    "spark_version": "2"
+                }
+            }
+        }
+
         post_mock.return_value = Resp()
         cmd_mock.return_value = (0, 'dev')
         with patch("__builtin__.open", mock_open(read_data="[]")):
             creator = ApplicationCreator(self.config, self.environment, self.service)
+            self.assertRaises(FailedValidation, creator.assert_application_properties, override_properties, default_properties)
             self.assertRaises(FailedCreation, creator.create_application, 'abcd', self.package_metadata_2, 'aname', self.property_overrides)
 
     @patch('starbase.Connection')

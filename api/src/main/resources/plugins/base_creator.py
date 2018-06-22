@@ -106,6 +106,15 @@ class Creator(object):
         '''
         pass
 
+    def assert_application_properties(self, override_properties, default_properties):
+        '''
+        Assert application properties before creating the application
+
+        override_properties - properties overrided by user
+        default_properties - default properties present in package
+        '''
+        pass
+
     def destroy_component(self, application_name, create_data):
         '''
         Destroys component of the package of given component type
