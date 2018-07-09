@@ -180,7 +180,7 @@ def fill_hadoop_env_hdp(env):
 
             elif role_name == "HIVE_SERVER":
                 env['hive_server'] = '%s' % component_host(component_detail)
-                env['hive_port'] = '10000'
+                env['hive_port'] = '10001'
 
 def fill_hadoop_env_cdh(env):
     # pylint: disable=E1103
