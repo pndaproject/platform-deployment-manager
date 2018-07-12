@@ -79,7 +79,7 @@ class FlinkCreator(Common):
             raise Exception('properties.json must contain "main_jar or main_py" for %s flink %s' % (application_name, component['component_name']))
 
         this_dir = os.path.dirname(os.path.realpath(__file__))
-        copy(os.path.join(this_dir, 'yarn-kill.py'), staged_component_path)
+        copy(os.path.join(this_dir, 'flink-stop.py'), staged_component_path)
         service_script = 'flink.systemd.service.tpl' if java_app else 'flink.systemd.service.py.tpl'
         service_script_install_path = '/usr/lib/systemd/system/%s.service' % service_name
         if 'component_respawn_type' not in properties:
@@ -98,7 +98,7 @@ class FlinkCreator(Common):
 
         self._fill_properties(os.path.join(staged_component_path, service_script), properties)
         self._fill_properties(os.path.join(staged_component_path, 'application.properties'), properties)
-        self._fill_properties(os.path.join(staged_component_path, 'yarn-kill.py'), properties)
+        self._fill_properties(os.path.join(staged_component_path, 'flink-stop.py'), properties)
 
         mkdircommands = []
         mkdircommands.append('mkdir -p %s' % remote_component_tmp_path)
@@ -111,7 +111,7 @@ class FlinkCreator(Common):
         commands = []
         commands.append('sudo cp %s/%s %s' % (remote_component_tmp_path, service_script, service_script_install_path))
         commands.append('sudo cp %s/* %s' % (remote_component_tmp_path, remote_component_install_path))
-        commands.append('sudo chmod a+x %s/yarn-kill.py' % (remote_component_install_path))
+        commands.append('sudo chmod a+x %s/flink-stop.py' % (remote_component_install_path))
 
         if 'component_main_jar' in properties:
             commands.append('cd %s && sudo jar uf %s application.properties' % (remote_component_install_path, properties['component_main_jar']))
