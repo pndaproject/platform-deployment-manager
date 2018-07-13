@@ -21,6 +21,7 @@ All notable changes to this project will be documented in this file.
 - PNDA-4012: Add missing application type in application detailed summary
 - PNDA-4009: Improve application status naming in application detailed summary
 - PNDA-4237: Failure details provided in application summary info if an application fails to submit to YARN
+- PNDA-4796: Flink-stop added to stop the flink applications properly
 
 ## [1.0.0] 2018-02-10
 ### Added:
