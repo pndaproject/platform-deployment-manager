@@ -6,13 +6,13 @@ from application_summary_registrar import HBaseAppplicationSummary
 class AppplicationSummaryRegistrarTests(unittest.TestCase):
     @patch('happybase.Connection.table.scan', return_value=['app1', 'app2', 'app3'])
     @patch('happybase.Connection')
-    def test_remove_app_entry(self, hbase_mock, dm_app_list):
+    def test_sync_with_dm(self, hbase_mock, dm_app_list):
         """
         Testing deleted aplication get removed from Hbase
         """
         registrar = HBaseAppplicationSummary('1.2.3.4')
         application_list = ['app1', 'app2']
-        registrar.remove_app_entry(application_list)
+        registrar.sync_with_dm(application_list)
         for application, _ in dm_app_list:
             if application not in application_list:
                 hbase_mock.return_value.table.return_value.delete.assert_called_once_with(application)
@@ -23,7 +23,7 @@ class AppplicationSummaryRegistrarTests(unittest.TestCase):
         Testing Summary data ets posted to Hbase
         """
         registrar = HBaseAppplicationSummary('1.2.3.4')
-        registrar.post_to_hbase({'aname': {'aggregate_status': 'status', 'component-1': 'data'}})
+        registrar.post_to_hbase({'aname': {'aggregate_status': 'status', 'component-1': 'data'}}, 'aname')
         hbase_mock.return_value.table.return_value.put.assert_called_once_with('aname', \
         {'cf:component_data': json.dumps({'component-1': 'data'}), 'cf:aggregate_status': 'status'})
 
