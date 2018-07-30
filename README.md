@@ -69,6 +69,7 @@ To build the Deployment Manager, change to the `api` directory, which contains t
 
 # API Documentation
 
+* [Base URL](#base-url)
 * [Repository API](#repository-api)
   * [GET /repository/packages](#list-packages-from-the-repository)
 * [Packages API](#packages-api)
@@ -89,6 +90,20 @@ To build the Deployment Manager, change to the `api` directory, which contains t
   * [DELETE /applications/_application_](#destroy-application)
 * [Environment Endpoints API](#environment-endpoints-api)
   * [GET /environment/endpoints](#list-environment-variables-known-to-the-deployment-manager)
+
+
+## Base URL
+
+All API paths below are relative to a base URL is defined by schemes, host, port and base path on the root level of this API specification.
+
+```
+<scheme>://<host>:<port>/<base path>
+```
+
+By default, the API uses 'https' scheme as the transfer protocol. Host is the domain name or hostname that serves the API. In order to access the API outside PNDA security perimeter, it has to via knox service by using the domain name or FQDN when creating a PNDA cluster. The domain name or FQDN must be resolvable via public or private DNS service. To access the deployment management API, the base path, `/gateway/pnda/deployment`, must be used as prefixes for all API paths. 
+
+e.g. ```https://knox.example.com:8443/gateway/pnda/deployment```
+
 
 ## Repository API
 
