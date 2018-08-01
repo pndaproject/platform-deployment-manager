@@ -22,7 +22,7 @@ class HBaseAppplicationSummary(object):
             finally:
                 connection.close()
 
-    def remove_app_entry(self, app_list):
+    def sync_with_dm(self, app_list):
         connection = None
         try:
             connection = happybase.Connection(self._hbase_host)
@@ -46,17 +46,16 @@ class HBaseAppplicationSummary(object):
         finally:
             connection.close()
 
-    def post_to_hbase(self, app_summary):
-        for application in app_summary:
-            data = {}
-            for component in app_summary[application]:
-                if 'aggregate_status' not in component:
-                    data.update({component: app_summary[application][component]})
-            data = {
-                '%s:%s' % ('cf', 'component_data'): json.dumps(data),
-                '%s:%s' % ('cf', 'aggregate_status'): app_summary[application]['aggregate_status']
-            }
-            self.write_to_hbase(application, data)
+    def post_to_hbase(self, summary, application):
+        data = {}
+        for component in summary[application]:
+            if component != 'aggregate_status':
+                data.update({component: summary[application][component]})
+        data = {
+            '%s:%s' % ('cf', 'component_data'): json.dumps(data),
+            '%s:%s' % ('cf', 'aggregate_status'): summary[application]['aggregate_status']
+        }
+        self.write_to_hbase(application, data)
 
     def _read_from_db(self, key):
         connection = None
@@ -82,17 +81,28 @@ class HBaseAppplicationSummary(object):
             connection.close()
         return data
 
-    def get_status_with_timestamp(self, key):
+    def get_dm_status(self, key):
         try:
             connection = happybase.Connection(self._hbase_host)
             table = connection.table("platform_applications")
-            row = table.row(key, columns=['cf:status'], include_timestamp=True)
-            status, timestamp = row['cf:status']
+            row = table.row(key, columns=['cf:status'])
+            status = row['cf:status']
         except TTransportException as error_message:
             logging.error(str(error_message))
         finally:
             connection.close()
-        return status, timestamp
+        return status
+
+    def get_flink_job_id(self, key):
+        jid = ''
+        data = self._read_from_db(key)
+        if data:
+            data = json.loads(data['cf:component_data'])
+            for component in data:
+                if 'flink' in component:
+                    tracking_url = data[component]['tracking_url']
+                    jid = tracking_url.split("jobs")[-1]
+        return jid
 
     def get_summary_data(self, application):
         record = {application: {}}
