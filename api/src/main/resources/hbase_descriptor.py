@@ -24,7 +24,7 @@ either express or implied.
 import json
 import logging
 import starbase
-import pyhs2
+import subprocess
 
 
 def create(descriptor_path, environment):
@@ -35,20 +35,21 @@ def create(descriptor_path, environment):
     logging.debug("_deploy_hbase: %s", descriptor)
     hbase = starbase.Connection(host=environment['hbase_rest_server'], port=int(environment['hbase_rest_port']))
     hive_host = environment['hive_server']
-    hive_port = environment['hive_port']
-    hive = pyhs2.connect(
-        host=hive_host,
-        port=hive_port,
-        authMechanism="PLAIN",
-        user='hdfs',
-        password='test',
-        database='default')
-
+    hive_port = int(environment['hive_port'])
+    
     for element in descriptor:
         if 'table' in element and 'col_family' in element:
             table = hbase.table('%s' % element['table'])
             table.create(element['col_family'])
             for qry in element['hive_schema']:
-                hive.cursor().execute(qry)
+                beeline_output = run_hive_query(qry, hive_host, hive_port)
+                logging.info(beeline_output)
 
-    hive.close()
+
+def run_hive_query(query, hive_host, hive_port):
+    beeline_output = subprocess.check_output([
+    "beeline",
+    "-u", "jdbc:hive2://%s:%s/;transportMode=http;httpPath=cliservice" % (hive_host, hive_port),
+    "-e",
+    query])
+    return beeline_output
