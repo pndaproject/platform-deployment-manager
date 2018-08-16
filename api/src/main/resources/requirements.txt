@@ -10,7 +10,7 @@ happybase==1.0.0
 idna==2.1
 ipaddress==1.0.17
 ordereddict==1.1
-paramiko==2.1.1
+paramiko==2.1.5
 ply==3.9
 pyasn1==0.1.9
 pycparser==2.17
