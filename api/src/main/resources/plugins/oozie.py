@@ -81,7 +81,7 @@ requested spark version" % self._config['oozie_spark_version']
                 if os.path.isfile(os.path.join(flink_lib_dir, jar)) and 'flink-python' in jar:
                     properties['flink_python_jar'] = '%s/%s' % (flink_lib_dir, jar)
         else:
-            raise Exception('properties.json must contain "main_jar or main_py" for %s flink-batch-job %s' % (application_name, component['component_name']))
+            raise Exception('properties.json must contain "main_jar or main_py" for %s flink-batch-job %s' % (application_name, component_name))
 
         shutil.copyfile(os.path.join(this_dir, 'flink-stop.py'), '%s/lib/flink-stop.py' % staged_component_path)
         shutil.copyfile(os.path.join(this_dir, service_script), '%s/lib/%s' % (staged_component_path, service_script))
