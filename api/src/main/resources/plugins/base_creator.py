@@ -57,7 +57,7 @@ class Creator(object):
         self._namespace = namespace
         self._hdfs_client = HDFS(environment['webhdfs_host'],
                                  environment['webhdfs_port'],
-                                 'hdfs')
+                                 environment['webhdfs_user'])
 
         if 'yarn_resource_manager_host' in environment:
             self._yarn_resource_manager = "%s:%s" % (environment['yarn_resource_manager_host'],

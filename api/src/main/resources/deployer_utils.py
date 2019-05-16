@@ -67,8 +67,10 @@ def update_hadoop_env(env):
     logging.debug('Updating environment descriptor')
     if env['hadoop_distro'] == 'CDH':
         fill_hadoop_env_cdh(tmp_env)
-    else:
+    elif env['hadoop_distro'] == 'HDP':
         fill_hadoop_env_hdp(tmp_env)
+    else:
+        logging.warning('Skipping update_hadoop_env for hadoop distro "%s"', env['hadoop_distro'])
     logging.debug('Updated environment descriptor')
     for key in tmp_env:
         # Dictionary get/put operations are atomic so inherently thread safe and don't need a lock
