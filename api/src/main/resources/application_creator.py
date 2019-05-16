@@ -44,7 +44,7 @@ class ApplicationCreator(object):
         self._name_regex = re.compile('')
         self._hdfs_client = HDFS(environment['webhdfs_host'],
                                  environment['webhdfs_port'],
-                                 'hdfs')
+                                 environment['webhdfs_user'])
 
     def assert_application_properties(self, override_properties, default_properties):
         for component_type, component_properties in default_properties.iteritems():

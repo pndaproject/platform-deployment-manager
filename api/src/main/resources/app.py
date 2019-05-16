@@ -328,7 +328,7 @@ def main():
                                               package_registrar.HbasePackageRegistrar(
                                                   config['environment']['hbase_thrift_server'],
                                                   config['environment']['webhdfs_host'],
-                                                  'hdfs',
+                                                  config['environment']['webhdfs_user'],
                                                   config['environment']['webhdfs_port'],
                                                   config['config']['stage_root']),
                                               application_registrar.HbaseApplicationRegistrar(
