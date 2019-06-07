@@ -1,6 +1,6 @@
-NAME=deployment-manager
-VERSION=0.1.3
-REGISTRY=containers.cisco.com/donaldh
+NAME=platform-deployment-manager
+VERSION=release5.0
+REGISTRY=pnda
 
 build:	## Build the docker image
 	docker build -t "$(NAME):$(VERSION)" -f Dockerfile .
