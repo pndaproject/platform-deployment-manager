@@ -358,7 +358,7 @@ class DeployerRestClientTester(object):
             # should never reach this statement:
             assert False
         except AssertionError as ex:
-            assert "404" in ex.message
+            assert "404" in str(ex)
 
     def test_undeploy(self, test_package):
         logging.debug("Undeploying test package...")
