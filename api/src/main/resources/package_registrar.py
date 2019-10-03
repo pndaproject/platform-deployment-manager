@@ -31,9 +31,10 @@ from deployer_utils import HDFS
 
 from exceptiondef import FailedConnection
 
+from hbase_utils import encode,decode
 
 class HbasePackageRegistrar(object):
-    COLUMN_DEPLOY_STATUS = "cf:deploy_status"
+    COLUMN_DEPLOY_STATUS = 'cf:deploy_status'
 
     def __init__(self, hbase_host, hdfs_host, hdfs_user, hdfs_port, package_local_dir_path):
         self._hbase_host = hbase_host
@@ -110,8 +111,8 @@ class HbasePackageRegistrar(object):
             package_name, ['cf:metadata', 'cf:name', 'cf:version'])
         if not package_data:
             return None
-        return {"metadata": json.loads(package_data["cf:metadata"]), "name": package_data[
-            "cf:name"], "version": package_data["cf:version"]}
+        return {"metadata": json.loads(package_data['cf:metadata']), "name": package_data[
+            'cf:name'], "version": package_data['cf:version']}
 
     def package_exists(self, package_name):
         logging.debug("Checking %s", package_name)
@@ -138,7 +139,7 @@ class HbasePackageRegistrar(object):
         try:
             connection = happybase.Connection(self._hbase_host)
             table = connection.table(self._table_name)
-            result = [key for key, _ in table.scan(columns=['cf:name'])]
+            result = [key.decode() for key, _ in table.scan(columns=['cf:name'])]
         except Exception as exc:
             logging.debug(str(exc))
             raise FailedConnection('Unable to connect to the HBase master')
@@ -159,10 +160,11 @@ class HbasePackageRegistrar(object):
         connection = happybase.Connection(self._hbase_host)
         try:
             table = connection.table(self._table_name)
-            data = table.row(key, columns=columns)
+            data = table.row(encode(key), columns=encode(columns))
         finally:
             connection.close()
-        return data
+        
+        return decode(data)
 
     def _read_from_hdfs(self, source_hdfs_path, dest_local_path):
         self._hdfs_client.stream_file_to_disk(source_hdfs_path, dest_local_path)
@@ -171,7 +173,7 @@ class HbasePackageRegistrar(object):
         connection = happybase.Connection(self._hbase_host)
         try:
             table = connection.table(self._table_name)
-            table.put(key, data)
+            table.put(encode(key), encode(data))
         finally:
             connection.close()
 

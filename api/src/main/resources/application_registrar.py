@@ -26,6 +26,7 @@ import happybase
 from Hbase_thrift import AlreadyExists
 
 from lifecycle_states import ApplicationState
+from hbase_utils import encode,decode
 
 
 class HbaseApplicationRegistrar(object):
@@ -101,7 +102,7 @@ class HbaseApplicationRegistrar(object):
         connection = happybase.Connection(self._hbase_host)
         try:
             table = connection.table(self._table_name)
-            result = [key for key, data in table.scan(columns=['cf:status']) if data['cf:status'] != ApplicationState.NOTCREATED]
+            result = [decode(key) for key, data in table.scan(columns=[b'cf:status']) if decode(data[b'cf:status']) != ApplicationState.NOTCREATED]
         finally:
             connection.close()
         return result
@@ -112,8 +113,8 @@ class HbaseApplicationRegistrar(object):
         connection = happybase.Connection(self._hbase_host)
         try:
             table = connection.table(self._table_name)
-            result = [key for key, data in table.scan(columns=['cf:package_name', 'cf:status'])
-                      if data['cf:package_name'] == package_name and data['cf:status'] != ApplicationState.NOTCREATED]
+            result = [key for key, data in table.scan(columns=[b'cf:package_name', b'cf:status'])
+                      if decode(data[b'cf:package_name']) == package_name and decode(data[b'cf:status']) != ApplicationState.NOTCREATED]
         finally:
             connection.close()
         return result
@@ -131,15 +132,15 @@ class HbaseApplicationRegistrar(object):
         connection = happybase.Connection(self._hbase_host)
         try:
             table = connection.table(self._table_name)
-            data = table.row(key)
+            data = table.row(encode(key))
         finally:
             connection.close()
-        return data
+        return decode(data)
 
     def _write_to_db(self, key, data):
         connection = happybase.Connection(self._hbase_host)
         try:
             table = connection.table(self._table_name)
-            table.put(key, data)
+            table.put(encode(key), encode(data))
         finally:
             connection.close()

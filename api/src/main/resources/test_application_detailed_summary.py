@@ -23,9 +23,9 @@ class ApplicationDetailedSummaryTests(unittest.TestCase):
     def test_sparkstreaming_component(self, mock_hbase, mock_get_requests, mock_summary_registrar):
         # SparkStreaming CREATED status
         mock_hbase.return_value.table.return_value.row.side_effect = [
-            {'cf:create_data': '{"sparkStreaming": [{"component_name": "example", \
+            {b'cf:create_data': '{"sparkStreaming": [{"component_name": "example", \
             "component_job_name": "app1-example-job"}]}'},
-            {'cf:status': 'CREATED'}]
+            {b'cf:status': 'CREATED'}]
         mock_get_requests.return_value = type('obj', (object,), {
             'status_code' : 200,
             'text': json.dumps({
@@ -48,9 +48,9 @@ class ApplicationDetailedSummaryTests(unittest.TestCase):
 
         # SparkStreaming RUNNING status
         mock_hbase.return_value.table.return_value.row.side_effect = [
-            {'cf:create_data': '{"sparkStreaming": [{"component_name": "example", \
+            {b'cf:create_data': '{"sparkStreaming": [{"component_name": "example", \
             "component_job_name": "app1-example-job"}]}'},
-            {'cf:status': 'STARTED'}]
+            {b'cf:status': 'STARTED'}]
         mock_get_requests.side_effect = [
             type('obj', (object,), {'status_code' : 200, 'text': json.dumps({
                 "apps": {
@@ -101,9 +101,9 @@ class ApplicationDetailedSummaryTests(unittest.TestCase):
 
         # SparkStreaming RUNNING_WITH_ERRORS status
         mock_hbase.return_value.table.return_value.row.side_effect = [
-            {'cf:create_data': '{"sparkStreaming": [{"component_name": "example", \
+            {b'cf:create_data': '{"sparkStreaming": [{"component_name": "example", \
             "component_job_name": "app1-example-job"}]}'},
-            {'cf:status': 'STARTED'}]
+            {b'cf:status': 'STARTED'}]
         mock_get_requests.side_effect = [
             type('obj', (object,), {'status_code' : 200, 'text': json.dumps({
                 "apps": {
@@ -161,9 +161,9 @@ class ApplicationDetailedSummaryTests(unittest.TestCase):
 
         # SparkStreaming KILLED status
         mock_hbase.return_value.table.return_value.row.side_effect = [
-            {'cf:create_data': '{"sparkStreaming": [{"component_name": "example", \
+            {b'cf:create_data': '{"sparkStreaming": [{"component_name": "example", \
             "component_job_name": "app1-example-job"}]}'},
-            {'cf:status': 'CREATED'}]
+            {b'cf:status': 'CREATED'}]
         mock_get_requests.side_effect = [
             type('obj', (object,), {'status_code' : 200, 'text': json.dumps({
                 "apps": {
@@ -195,9 +195,9 @@ class ApplicationDetailedSummaryTests(unittest.TestCase):
     def test_flink_component(self, mock_hbase, mock_get_requests, mock_summary_registrar):
         # Flink CREATED status
         mock_hbase.return_value.table.return_value.row.side_effect = [
-            {'cf:create_data': '{"flink": [{"component_name": "example", \
+            {b'cf:create_data': '{"flink": [{"component_name": "example", \
             "component_job_name": "app2-example-job"}]}'},
-            {'cf:status': 'CREATED'}]
+            {b'cf:status': 'CREATED'}]
         mock_get_requests.return_value = type('obj', (object,), {
             'status_code' : 200,
             'text': json.dumps({
@@ -220,9 +220,9 @@ class ApplicationDetailedSummaryTests(unittest.TestCase):
 
         # Flink RUNNING status
         mock_hbase.return_value.table.return_value.row.side_effect = [
-            {'cf:create_data': '{"flink": [{"component_name": "example", \
+            {b'cf:create_data': '{"flink": [{"component_name": "example", \
             "component_job_name": "app2-example-job"}]}'},
-            {'cf:status': 'STARTED'}]
+            {b'cf:status': 'STARTED'}]
         mock_get_requests.side_effect = [
             type('obj', (object,), {'status_code' : 200, 'text': json.dumps({
                 "apps": {
@@ -258,9 +258,9 @@ class ApplicationDetailedSummaryTests(unittest.TestCase):
 
         # Flink RUNNING_WITH_ERRORS status
         mock_hbase.return_value.table.return_value.row.side_effect = [
-            {'cf:create_data': '{"flink": [{"component_name": "example", \
+            {b'cf:create_data': '{"flink": [{"component_name": "example", \
             "component_job_name": "app2-example-job"}]}'},
-            {'cf:status': 'STARTED'}]
+            {b'cf:status': 'STARTED'}]
         mock_get_requests.side_effect = [
             type('obj', (object,), {'status_code' : 200, 'text': json.dumps({
                 "apps": {
@@ -296,10 +296,10 @@ class ApplicationDetailedSummaryTests(unittest.TestCase):
 
         # Flink FINISHED_SUCCEEDED state for job ran more than a minute
         mock_hbase.return_value.table.return_value.row.side_effect = [
-            {'cf:create_data': '{"flink": [{"component_name": "example", \
+            {b'cf:create_data': '{"flink": [{"component_name": "example", \
             "component_job_name": "app2-example-job"}]}'},
-            {'cf:status': 'CREATED'},
-            {'cf:component_data': '{"flink-1": {"tracking_url": "xyz/#/jobs/jhfi48y8rfuf3ci"}}'}]
+            {b'cf:status': 'CREATED'},
+            {b'cf:component_data': '{"flink-1": {"tracking_url": "xyz/#/jobs/jhfi48y8rfuf3ci"}}'}]
         mock_get_requests.side_effect = [
             type('obj', (object,), {'status_code' : 200, 'text': json.dumps({
                 "apps": {
@@ -328,10 +328,10 @@ class ApplicationDetailedSummaryTests(unittest.TestCase):
 
         # Flink FINISHED_SUCCEEDED state for job less than a minute
         mock_hbase.return_value.table.return_value.row.side_effect = [
-            {'cf:create_data': '{"flink": [{"component_name": "example", \
+            {b'cf:create_data': '{"flink": [{"component_name": "example", \
             "component_job_name": "app2-example-job"}]}'},
-            {'cf:status': 'CREATED'},
-            {'cf:component_data': '{"flink-1": {"tracking_url": "xyz/#/jobs/jhfi48y8rfuf3ci"}}'}]
+            {b'cf:status': 'CREATED'},
+            {b'cf:component_data': '{"flink-1": {"tracking_url": "xyz/#/jobs/jhfi48y8rfuf3ci"}}'}]
         mock_get_requests.side_effect = [
             type('obj', (object,), {'status_code' : 200, 'text': json.dumps({
                 "apps": {
@@ -360,10 +360,10 @@ class ApplicationDetailedSummaryTests(unittest.TestCase):
 
         # Flink FAILED state
         mock_hbase.return_value.table.return_value.row.side_effect = [
-            {'cf:create_data': '{"flink": [{"component_name": "example", \
+            {b'cf:create_data': '{"flink": [{"component_name": "example", \
             "component_job_name": "app2-example-job"}]}'},
-            {'cf:status': 'CREATED'},
-            {'cf:component_data': '{"flink-1": {"tracking_url": "xyz/#/jobs/jhfi48y8rfuf3ci"}}'}]
+            {b'cf:status': 'CREATED'},
+            {b'cf:component_data': '{"flink-1": {"tracking_url": "xyz/#/jobs/jhfi48y8rfuf3ci"}}'}]
         mock_get_requests.side_effect = [
             type('obj', (object,), {'status_code' : 200, 'text': json.dumps({
                 "apps": {
@@ -395,7 +395,7 @@ class ApplicationDetailedSummaryTests(unittest.TestCase):
     @patch('happybase.Connection')
     def test_oozie_component(self, mock_hbase, mock_get_requests, mock_summary_registrar):
         # Oozie coordinator CREATED status
-        mock_hbase.return_value.table.return_value.row.return_value = {'cf:create_data': \
+        mock_hbase.return_value.table.return_value.row.return_value = {b'cf:create_data': \
         '{"oozie": [{"job_handle": "123-oozie-oozi-C"}]}'}
         mock_get_requests.return_value = type('obj', (object,), {
             'status_code' : 200,
@@ -419,7 +419,7 @@ class ApplicationDetailedSummaryTests(unittest.TestCase):
 
         # Oozie coordinator RUNNING state
         mock_hbase.return_value.table.return_value.row.return_value = {
-            'cf:create_data': '{"oozie": [{"job_handle": "123-oozie-oozi-C"}]}'
+            b'cf:create_data': '{"oozie": [{"job_handle": "123-oozie-oozi-C"}]}'
         }
         mock_get_requests.side_effect = [
             type('obj', (object,), {'status_code' : 200, 'text': json.dumps({
@@ -514,7 +514,7 @@ class ApplicationDetailedSummaryTests(unittest.TestCase):
 
         # Oozie coordinator RUNNING_WITH_ERRORS state
         mock_hbase.return_value.table.return_value.row.return_value = {
-            'cf:create_data': '{"oozie": [{"job_handle": "123-oozie-oozi-C"}]}'}
+            b'cf:create_data': '{"oozie": [{"job_handle": "123-oozie-oozi-C"}]}'}
         mock_get_requests.side_effect = [
             type('obj', (object,), {'status_code' : 200, 'text': json.dumps({
                 'status': 'RUNNING',
@@ -601,7 +601,7 @@ class ApplicationDetailedSummaryTests(unittest.TestCase):
 
         # Oozie coordinator SUSPENDED state
         mock_hbase.return_value.table.return_value.row.return_value = {
-            'cf:create_data': '{"oozie": [{"job_handle": "123-oozie-oozi-C"}]}'}
+            b'cf:create_data': '{"oozie": [{"job_handle": "123-oozie-oozi-C"}]}'}
         mock_get_requests.side_effect = [
             type('obj', (object,), {'status_code' : 200, 'text': json.dumps({
                 'status': 'SUSPENDED',
@@ -694,7 +694,7 @@ class ApplicationDetailedSummaryTests(unittest.TestCase):
 
         # Oozie workflow COMPLTED_WITH_FAILURES state
         mock_hbase.return_value.table.return_value.row.return_value = {
-            'cf:create_data': '{"oozie": [{"job_handle": "123-oozie-oozi-C"}]}'}
+            b'cf:create_data': '{"oozie": [{"job_handle": "123-oozie-oozi-C"}]}'}
         mock_get_requests.side_effect = [
             type('obj', (object,), {'status_code' : 200, 'text': json.dumps({
                 'status': 'DONEWITHERROR',
@@ -757,9 +757,9 @@ class ApplicationDetailedSummaryTests(unittest.TestCase):
         mock_command_out):
         # Testing check_in_service_log
         mock_hbase.return_value.table.return_value.row.side_effect = [
-            {'cf:create_data': '{"sparkStreaming": [{"component_name": "example", \
+            {b'cf:create_data': '{"sparkStreaming": [{"component_name": "example", \
             "component_job_name": "app5-example-job"}]}'},
-            {'cf:status': 'STARTED'}
+            {b'cf:status': 'STARTED'}
         ]
         mock_get_requests.return_value = type('obj', (object,), {
             'status_code' : 200,
@@ -790,11 +790,11 @@ execute "journalctl -u platform-app-app5-example"',
     @patch('happybase.Connection')
     def test_combined_component(self, mock_hbase, mock_get_requests, mock_summary_registrar):
         mock_hbase.return_value.table.return_value.row.side_effect = [
-            {'cf:create_data': '{"flink": [{"component_name": "example1", \
+            {b'cf:create_data': '{"flink": [{"component_name": "example1", \
             "component_job_name": "app6-example1-job"}], "sparkStreaming": [{"component_name": "example2", \
             "component_job_name": "app6-example2-job"}]}'},
-            {'cf:status': ('STARTED', 1)},
-            {'cf:status': ('STARTED', 1)}]
+            {b'cf:status': ('STARTED', 1)},
+            {b'cf:status': ('STARTED', 1)}]
         mock_get_requests.side_effect = [
             type('obj', (object,), {'status_code' : 200, 'text': json.dumps({
                 "apps": {
@@ -872,10 +872,10 @@ execute "journalctl -u platform-app-app5-example"',
 
 
         mock_hbase.return_value.table.return_value.row.side_effect = [
-            {'cf:create_data': '{"flink": [{"component_name": "example", \
+            {b'cf:create_data': '{"flink": [{"component_name": "example", \
             "component_job_name": "app6-example-job"}], "oozie": [{"job_handle": "123-oozie-oozi-C"}]}'},
-            {'cf:status': ('STARTED', 1)},
-            {'cf:component_data': '{"flink-1": {"tracking_url": "xyz/#/jobs/jhfi48y8rfuf3ci"}}'}]
+            {b'cf:status': ('STARTED', 1)},
+            {b'cf:component_data': '{"flink-1": {"tracking_url": "xyz/#/jobs/jhfi48y8rfuf3ci"}}'}]
         mock_get_requests.side_effect = [
             type('obj', (object,), {'status_code' : 200, 'text': json.dumps({
                 "apps": {

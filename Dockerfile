@@ -8,3 +8,17 @@ COPY api/src/main/resources /deployment-manager/
 WORKDIR /deployment-manager
 
 RUN pip3 install -r requirements.txt
+
+# GIT http server to serve notebooks to jupyterhub
+RUN yum install -y git nginx fcgiwrap && \
+    git config --global user.email "pnda@pnda.io" && \
+    git config --global user.name "pnda" && \
+    mkdir -p /data/git-repos/ && \
+    mkdir -p /data/stage/ 
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY docker/entrypoint.sh /entrypoint.sh
+# PNDA platform users must transition from Linux SO users to cloud-native. For now we add a pnda user to container images.
+RUN useradd pnda
+
+ENTRYPOINT "/entrypoint.sh"
+

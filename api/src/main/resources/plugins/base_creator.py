@@ -246,7 +246,7 @@ class Creator(object):
     def create_components(self, stage_path, application_name, user_name, components,
                           components_overrides):
         results = []
-        for component_name, component in components.iteritems():
+        for component_name, component in components.items():
             staged_component_path = '%s/%s' % (stage_path, component['component_path'])
             overrides = components_overrides.get(component_name) if components_overrides is not None else {}
             overrides = {} if overrides is None else overrides
@@ -280,7 +280,7 @@ class Creator(object):
     def validate_components(self, components):
         logging.debug("validate_components: %s", components)
         result = {}
-        for component_name, component in components.iteritems():
+        for component_name, component in components.items():
             validation_errors = self.validate_component(component)
             if validation_errors:
                 result[component_name] = validation_errors

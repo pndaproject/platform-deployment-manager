@@ -35,9 +35,9 @@ class PackageParser(object):
 
     def properties_from_metadata(self, metadata):
         properties = {}
-        for component_type, components in metadata['component_types'].iteritems():
+        for component_type, components in metadata['component_types'].items():
             properties[component_type] = {}
-            for component_name, component_detail in components.iteritems():
+            for component_name, component_detail in components.items():
                 properties[component_type][component_name] = component_detail['component_detail']['properties.json']
         return properties
 
@@ -81,8 +81,8 @@ class PackageParser(object):
             if len(metadata['component_types']) <= 0:
                 raise FailedValidation("Expected to find at least one component within the package directory")
 
-            for component_type, components in metadata['component_types'].iteritems():
-                for component_name, component_detail in components.iteritems():
+            for component_type, components in metadata['component_types'].items():
+                for component_name, component_detail in components.items():
                     if 'properties.json' not in component_detail['component_detail']:
                         component_detail['component_detail']['properties.json'] = {}
 
