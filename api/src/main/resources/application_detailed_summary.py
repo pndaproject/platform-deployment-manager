@@ -71,7 +71,7 @@ class ApplicationDetailedSummary(object):
             try:
                 create_data = self._application_registrar.get_create_data(application)
                 input_data = {}
-                for component_name, component_data in create_data.iteritems():
+                for component_name, component_data in create_data.items():
                     input_data[component_name] = {}
                     input_data[component_name]["component_ref"] = self._load_creator(component_name)
                     input_data[component_name]["component_data"] = component_data

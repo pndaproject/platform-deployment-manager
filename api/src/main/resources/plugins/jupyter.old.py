@@ -50,8 +50,10 @@ class JupyterCreator(Creator):
 
     def destroy_component(self, application_name, create_data):
         logging.debug("destroy_component: %s %s", application_name, json.dumps(create_data))
-        for command in create_data['delete_commands']:
-            os.system(command)
+        key_file = self._environment['cluster_private_key']
+        root_user = self._environment['cluster_root_user']
+        target_host = self._environment['jupyter_host']
+        deployer_utils.exec_ssh(target_host, root_user, key_file, create_data['delete_commands'])
 
     def start_component(self, application_name, create_data):
         logging.debug("start_component (nothing to do for jupyter): %s %s", application_name, json.dumps(create_data))
@@ -61,36 +63,33 @@ class JupyterCreator(Creator):
 
     def create_component(self, staged_component_path, application_name, user_name, component, properties):
         logging.debug("create_component: %s %s %s %s", application_name, user_name, json.dumps(component), properties)
+
+        key_file = self._environment['cluster_private_key']
+        root_user = self._environment['cluster_root_user']
+        target_host = self._environment['jupyter_host']
         application_user = properties['application_user']
         delete_commands = []
 
-        ## Create local git repo for application_user if not exist.
-        repo_path = '{}/jupyter-{}'.format(self._config['git_repos_root'], application_user)
-        if os.path.isdir(repo_path) == False:
-            os.system('mkdir -p {}'.format(repo_path))
-            os.system('git init {}'.format(repo_path))
-            os.system('cp {}/.git/hooks/post-update.sample {}/.git/hooks/post-update'.format(repo_path,repo_path))
-            os.system('chmod a+x {}/.git/hooks/post-update'.format(repo_path))
-            os.system('chmod a+w {} -R'.format(repo_path))
-            this_dir = os.path.dirname(os.path.realpath(__file__))
-            os.system('cp {}/jupyter_README.md {}/README.md'.format(this_dir, repo_path))
-            os.system('cd {0} && git add README.md && git commit -m "Initial commit"'.format(repo_path))
-        ## add notebooks to application_user github repo.
-        notebook_install_path = '{}/{}/'.format(repo_path, application_name)
-        os.system('mkdir -p {}'.format(notebook_install_path))
+        mkdircommands = []
+        remote_component_tmp_path = '%s/%s/%s/%s' % ('/tmp/%s' % self._namespace, application_user, application_name, component['component_name'])
+        remote_notebook_path = '/home/%s/%s' % (application_user, self._environment['jupyter_notebook_directory'])
+        mkdircommands.append('mkdir -p %s' % remote_component_tmp_path)
+        mkdircommands.append('sudo -u %s mkdir -p %s' % (application_user, remote_notebook_path))
+        deployer_utils.exec_ssh(target_host, root_user, key_file, mkdircommands)
+
         file_list = component['component_detail']
         for file_name in file_list:
             if file_name.endswith(r'.ipynb'):
                 self._fill_properties('%s/%s' % (staged_component_path, file_name), properties)
+                logging.debug('Copying %s/* to %s:%s', staged_component_path, target_host, remote_component_tmp_path)
+                os.system("scp -i %s -o StrictHostKeyChecking=no %s/%s %s@%s:%s" %
+                          (key_file, staged_component_path, file_name, root_user, target_host, remote_component_tmp_path))
 
-                logging.debug('Copying {} to {}'.format(file_name, notebook_install_path))
-                os.system('cp {}/{} {}'.format( staged_component_path, file_name, notebook_install_path ))
-        # update local github repo:
-        
-        os.system('cd {0} && git add {1} && git commit -m "added {1} app notebooks"'.format(repo_path, application_name))
-        delete_commands.append('rm -rf {}\n'.format( notebook_install_path))
-        delete_commands.append('cd {0} && git rm -r {1} && git commit -m "deleted {1} app notebooks"'.format( repo_path, application_name))
-
+                remote_component_install_path = '%s/%s_%s' % (remote_notebook_path, application_name, file_name)
+                deployer_utils.exec_ssh(
+                    target_host, root_user, key_file,
+                    ['sudo mv %s %s' % (remote_component_tmp_path + '/*.ipynb', remote_component_install_path)])
+                delete_commands.append('sudo rm -rf %s\n' % remote_component_install_path)
 
         logging.debug("uninstall commands: %s", delete_commands)
         return {'delete_commands': delete_commands}

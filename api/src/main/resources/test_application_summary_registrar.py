@@ -25,7 +25,7 @@ class AppplicationSummaryRegistrarTests(unittest.TestCase):
         registrar = HBaseAppplicationSummary('1.2.3.4')
         registrar.post_to_hbase({'aname': {'aggregate_status': 'status', 'component-1': 'data'}}, 'aname')
         hbase_mock.return_value.table.return_value.put.assert_called_once_with('aname', \
-        {'cf:component_data': json.dumps({'component-1': 'data'}), 'cf:aggregate_status': 'status'})
+        {b'cf:component_data': json.dumps({'component-1': 'data'}), b'cf:aggregate_status': 'status'})
 
     @patch('happybase.Connection')
     def test_get_summary_data(self, hbase_mock):
@@ -34,14 +34,14 @@ class AppplicationSummaryRegistrarTests(unittest.TestCase):
         """
         #In case of application have data in platform_application_summary and platform_applications
         registrar = HBaseAppplicationSummary('1.2.3.4')
-        registrar.get_dm_data = Mock(return_value={'cf:create_data': '{"create": "data"}', })
-        hbase_mock.return_value.table.return_value.row.return_value = {'cf:component_data': \
-        json.dumps({"component-1": "data"}), 'cf:aggregate_status': 'status'}
+        registrar.get_dm_data = Mock(return_value={b'cf:create_data': '{"create": "data"}', })
+        hbase_mock.return_value.table.return_value.row.return_value = {b'cf:component_data': \
+        json.dumps({"component-1": "data"}), b'cf:aggregate_status': 'status'}
         result = registrar.get_summary_data('name')
         self.assertEqual(result, {'name': {'aggregate_status': 'status', 'component-1': 'data'}})
 
         #In case of application have data only in platform_applications not in platform_application_summary
-        registrar.get_dm_data = Mock(return_value={'cf:create_data': '{"create": "data"}', })
+        registrar.get_dm_data = Mock(return_value={b'cf:create_data': '{"create": "data"}', })
         hbase_mock.return_value.table.return_value.row.return_value = {}
         result = registrar.get_summary_data('name')
         self.assertEqual(result, {'name': {'status': 'Not Available'}})

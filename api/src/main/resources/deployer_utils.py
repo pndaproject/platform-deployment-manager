@@ -22,7 +22,7 @@ either express or implied.
 
 import os
 import tarfile
-from io import StringIO
+from io import BytesIO
 import logging
 import traceback
 import time
@@ -243,7 +243,7 @@ class HDFS(object):
 
         logging.debug('create_file: %s', remote_file_path)
 
-        sio = StringIO.StringIO(data)
+        sio = BytesIO(data)
 
         self._hdfs.create_file(
             canonicalize(remote_file_path),
@@ -310,7 +310,7 @@ def exec_ssh(host, user, key, ssh_commands):
 
 def dict_to_props(dict_props):
     props = []
-    for key, value in dict_props.iteritems():
+    for key, value in dict_props.items():
         props.append('%s=%s' % (key, value))
     return '\n'.join(props)
 
