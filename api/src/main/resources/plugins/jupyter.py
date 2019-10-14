@@ -73,16 +73,17 @@ class JupyterCreator(Creator):
             os.system('chmod a+x {}/.git/hooks/post-update'.format(repo_path))
             os.system('chmod a+w {} -R'.format(repo_path))
             this_dir = os.path.dirname(os.path.realpath(__file__))
-            os.system('cp {}/jupyter_README.md {}/README.md'.format(this_dir, repo_path))
-            os.system('cd {0} && git add README.md && git commit -m "Initial commit"'.format(repo_path))
+            os.system('cp {}/jupyter_README.ipynb {}/README.ipynb'.format(this_dir, repo_path))
+            os.system('cd {0} && git add README.ipynb && git commit -m "Initial commit"'.format(repo_path))
         ## add notebooks to application_user github repo.
         notebook_install_path = '{}/{}/'.format(repo_path, application_name)
         os.system('mkdir -p {}'.format(notebook_install_path))
         file_list = component['component_detail']
         for file_name in file_list:
-            if file_name.endswith(r'.ipynb'):
+            # We copy all files in package to jupyter folder to let the user work with all kind of files/datasets.
+            #if file_name.endswith(r'.ipynb'):
+            if file_name != 'properties.json':
                 self._fill_properties('%s/%s' % (staged_component_path, file_name), properties)
-
                 logging.debug('Copying {} to {}'.format(file_name, notebook_install_path))
                 os.system('cp {}/{} {}'.format( staged_component_path, file_name, notebook_install_path ))
         # update local github repo:
