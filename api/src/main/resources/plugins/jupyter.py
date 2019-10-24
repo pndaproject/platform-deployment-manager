@@ -25,6 +25,8 @@ either express or implied.
 import json
 import os
 import logging
+import shutil
+import stat
 
 import deployer_utils
 from plugins.base_creator import Creator
@@ -67,25 +69,29 @@ class JupyterCreator(Creator):
         ## Create local git repo for application_user if not exist.
         repo_path = '{}/jupyter-{}'.format(self._config['git_repos_root'], application_user)
         if os.path.isdir(repo_path) == False:
-            os.system('mkdir -p {}'.format(repo_path))
+            os.makedirs(repo_path)
             os.system('git init {}'.format(repo_path))
-            os.system('cp {}/.git/hooks/post-update.sample {}/.git/hooks/post-update'.format(repo_path,repo_path))
-            os.system('chmod a+x {}/.git/hooks/post-update'.format(repo_path))
-            os.system('chmod a+w {} -R'.format(repo_path))
+            shutil.copyfile(repo_path+'/.git/hooks/post-update.sample', repo_path+'/.git/hooks/post-update')
+            os.chmod(repo_path+'/.git/hooks/post-update',0o755)
             this_dir = os.path.dirname(os.path.realpath(__file__))
-            os.system('cp {}/jupyter_README.ipynb {}/README.ipynb'.format(this_dir, repo_path))
+            shutil.copyfile(this_dir+'/jupyter_README.ipynb',repo_path+'/README.ipynb')
             os.system('cd {0} && git add README.ipynb && git commit -m "Initial commit"'.format(repo_path))
         ## add notebooks to application_user github repo.
         notebook_install_path = '{}/{}'.format(repo_path, application_name)
-        os.system('mkdir -p {}'.format(notebook_install_path))
+        os.makedirs('{}'.format(notebook_install_path))
         file_list = component['component_detail']
         for file_name in file_list:
             # We copy all files in package to jupyter folder to let the user work with all kind of files/datasets.
             #if file_name.endswith(r'.ipynb'):
             if file_name != 'properties.json':
-                self._fill_properties('%s/%s' % (staged_component_path, file_name), properties)
-                logging.debug('Copying {} to {}'.format(file_name, notebook_install_path))
-                os.system('cp {}/{} {}'.format( staged_component_path, file_name, notebook_install_path ))
+                if os.path.isfile('{}/{}'.format(staged_component_path,file_name)):
+                    self._fill_properties('%s/%s' % (staged_component_path, file_name), properties)
+                    logging.debug('Copying {} to {}'.format(file_name, notebook_install_path))
+                    shutil.copyfile('{}/{}'.format(staged_component_path, file_name),
+                          '{}/{}'.format(notebook_install_path, file_name ))
+                else:
+                    logging.debug('creating {}/{} folder'.format(notebook_install_path, file_name))
+                    os.makedirs('{}/{}'.format(notebook_install_path, file_name))
         # Create a properties.json file in notebooks to access application jupyter component properties.
         with open('{}/properties.json'.format(notebook_install_path), 'w') as prop_file:
             prop_dict = { k.replace('component_',''): v for k, v in properties.items() if k.startswith('component_')}
