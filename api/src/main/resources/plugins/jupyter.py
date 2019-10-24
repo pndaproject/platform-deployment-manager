@@ -76,7 +76,7 @@ class JupyterCreator(Creator):
             os.system('cp {}/jupyter_README.ipynb {}/README.ipynb'.format(this_dir, repo_path))
             os.system('cd {0} && git add README.ipynb && git commit -m "Initial commit"'.format(repo_path))
         ## add notebooks to application_user github repo.
-        notebook_install_path = '{}/{}/'.format(repo_path, application_name)
+        notebook_install_path = '{}/{}'.format(repo_path, application_name)
         os.system('mkdir -p {}'.format(notebook_install_path))
         file_list = component['component_detail']
         for file_name in file_list:
@@ -86,7 +86,11 @@ class JupyterCreator(Creator):
                 self._fill_properties('%s/%s' % (staged_component_path, file_name), properties)
                 logging.debug('Copying {} to {}'.format(file_name, notebook_install_path))
                 os.system('cp {}/{} {}'.format( staged_component_path, file_name, notebook_install_path ))
-        # update local github repo:
+        # Create a properties.json file in notebooks to access application jupyter component properties.
+        with open('{}/properties.json'.format(notebook_install_path), 'w') as prop_file:
+            prop_dict = { k.replace('component_',''): v for k, v in properties.items() if k.startswith('component_')}
+            json.dump(prop_dict, prop_file)
+            # update local github repo:
         
         os.system('cd {0} && git add {1} && git commit -m "added {1} app notebooks"'.format(repo_path, application_name))
         delete_commands.append('rm -rf {}\n'.format( notebook_install_path))
