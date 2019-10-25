@@ -22,7 +22,7 @@ either express or implied.
 
 import os
 import tarfile
-import StringIO
+from io import BytesIO
 import logging
 import traceback
 import time
@@ -31,18 +31,6 @@ from threading import Thread
 import requests
 import spur
 from pywebhdfs.webhdfs import PyWebHdfsClient
-
-from cm_api.api_client import ApiResource
-
-
-def connect_cm(cm_api, cm_username, cm_password):
-    api = ApiResource(
-        cm_api,
-        version=6,
-        username=cm_username,
-        password=cm_password)
-    return api
-
 
 def get_nameservice(cm_host, cluster_name, service_name, user_name='admin', password='admin'):
     request_url = 'http://%s:7180/api/v11/clusters/%s/services/%s/nameservices' % (cm_host,
@@ -66,9 +54,11 @@ def update_hadoop_env(env):
     tmp_env = dict(env)
     logging.debug('Updating environment descriptor')
     if env['hadoop_distro'] == 'CDH':
-        fill_hadoop_env_cdh(tmp_env)
-    else:
+        logging.error('CDH is not a supported hadoop distribution')
+    elif env['hadoop_distro'] == 'HDP':
         fill_hadoop_env_hdp(tmp_env)
+    else:
+        logging.warning('Skipping update_hadoop_env for hadoop distro "%s"', env['hadoop_distro'])
     logging.debug('Updated environment descriptor')
     for key in tmp_env:
         # Dictionary get/put operations are atomic so inherently thread safe and don't need a lock
@@ -182,105 +172,6 @@ def fill_hadoop_env_hdp(env):
                 env['hive_server'] = '%s' % component_host(component_detail)
                 env['hive_port'] = '10001'
 
-def fill_hadoop_env_cdh(env):
-    # pylint: disable=E1103
-    api = connect_cm(
-        env['hadoop_manager_host'],
-        env['hadoop_manager_username'],
-        env['hadoop_manager_password'])
-
-    for cluster_detail in api.get_all_clusters():
-        cluster_name = cluster_detail.name
-        break
-
-    logging.debug('getting %s', cluster_name)
-    env['cm_status_links'] = {}
-    env.pop('yarn_node_managers', None)
-    env.pop('yarn_resource_manager_host', None)
-    env.pop('zookeeper_quorum', None)
-
-    cluster = api.get_cluster(cluster_name)
-    for service in cluster.get_all_services():
-        env['cm_status_links']['%s' % service.name] = service.serviceUrl
-        if service.type == "HDFS":
-            nameservice = get_nameservice(env['hadoop_manager_host'], cluster_name,
-                                          service.name,
-                                          user_name=env['hadoop_manager_username'],
-                                          password=env['hadoop_manager_password'])
-            if nameservice:
-                env['name_node'] = 'hdfs://%s' % nameservice
-            for role in service.get_all_roles():
-                if not nameservice and role.type == "NAMENODE":
-                    env['name_node'] = 'hdfs://%s:8020' % api.get_host(role.hostRef.hostId).hostname
-                if role.type == "HTTPFS":
-                    env['webhdfs_host'] = '%s' % api.get_host(role.hostRef.hostId).hostname
-                    env['webhdfs_port'] = '14000'
-        elif service.type == "YARN":
-            for role in service.get_all_roles():
-                if role.type == "RESOURCEMANAGER":
-                    if 'yarn_resource_manager_host' in env:
-                        rm_instance = '_backup'
-                    else:
-                        rm_instance = ''
-                    env['yarn_resource_manager_host%s' % rm_instance] = '%s' % api.get_host(role.hostRef.hostId).hostname
-                    env['yarn_resource_manager_port%s' % rm_instance] = '8088'
-                    env['yarn_resource_manager_mr_port%s' % rm_instance] = '8032'
-                if role.type == "NODEMANAGER":
-                    if 'yarn_node_managers' in env:
-                        env['yarn_node_managers'] = '%s,%s' % (env['yarn_node_managers'], api.get_host(role.hostRef.hostId).hostname)
-                    else:
-                        env['yarn_node_managers'] = '%s' % api.get_host(
-                            role.hostRef.hostId).hostname
-        elif service.type == "MAPREDUCE":
-            for role in service.get_all_roles():
-                if role.type == "JOBTRACKER":
-                    env['job_tracker'] = '%s:8021' % api.get_host(role.hostRef.hostId).hostname
-                    break
-        elif service.type == "ZOOKEEPER":
-            for role in service.get_all_roles():
-                if role.type == "SERVER":
-                    if 'zookeeper_quorum' in env:
-                        env['zookeeper_quorum'] += ',%s' % api.get_host(role.hostRef.hostId).hostname
-                    else:
-                        env['zookeeper_quorum'] = '%s' % api.get_host(role.hostRef.hostId).hostname
-                        env['zookeeper_port'] = '2181'
-        elif service.type == "HBASE":
-            for role in service.get_all_roles():
-                if role.type == "HBASERESTSERVER":
-                    env['hbase_rest_server'] = '%s' % api.get_host(role.hostRef.hostId).hostname
-                    env['hbase_rest_port'] = '20550'
-                elif role.type == "HBASETHRIFTSERVER":
-                    env['hbase_thrift_server'] = '%s' % api.get_host(role.hostRef.hostId).hostname
-        elif service.type == "OOZIE":
-            for role in service.get_all_roles():
-                if role.type == "OOZIE_SERVER":
-                    env['oozie_uri'] = 'http://%s:11000/oozie' % api.get_host(role.hostRef.hostId).hostname
-                    break
-        elif service.type == "HIVE":
-            for role in service.get_all_roles():
-                if role.type == "HIVESERVER2":
-                    env['hive_server'] = '%s' % api.get_host(role.hostRef.hostId).hostname
-                    env['hive_port'] = '10000'
-                    break
-        elif service.type == "IMPALA":
-            for role in service.get_all_roles():
-                if role.type == "IMPALAD":
-                    env['impala_host'] = '%s' % api.get_host(role.hostRef.hostId).hostname
-                    env['impala_port'] = '21050'
-                    break
-        elif service.type == "KUDU":
-            for role in service.get_all_roles():
-                if role.type == "KUDU_MASTER":
-                    env['kudu_host'] = '%s' % api.get_host(role.hostRef.hostId).hostname
-                    env['kudu_port'] = '7051'
-                    break
-        elif service.type == "HUE":
-            for role in service.get_all_roles():
-                if role.type == "HUE_SERVER":
-                    env['hue_host'] = '%s' % api.get_host(role.hostRef.hostId).hostname
-                    env['hue_port'] = '8888'
-                    break
-
 def tree(archive_filepath):
     file_handle = file(archive_filepath, 'rb')
     tar_file = tarfile.open(None, 'r', file_handle)
@@ -296,7 +187,6 @@ def tree(archive_filepath):
             node = node[part]
 
     return root
-
 
 def canonicalize(path):
     path = path.replace('\\', '/')
@@ -353,7 +243,7 @@ class HDFS(object):
 
         logging.debug('create_file: %s', remote_file_path)
 
-        sio = StringIO.StringIO(data)
+        sio = BytesIO(data)
 
         self._hdfs.create_file(
             canonicalize(remote_file_path),
@@ -420,7 +310,7 @@ def exec_ssh(host, user, key, ssh_commands):
 
 def dict_to_props(dict_props):
     props = []
-    for key, value in dict_props.iteritems():
+    for key, value in dict_props.items():
         props.append('%s=%s' % (key, value))
     return '\n'.join(props)
 

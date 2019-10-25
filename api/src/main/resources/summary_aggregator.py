@@ -1,7 +1,7 @@
 class ComponentSummaryAggregator(object):
     def get_application_summary(self, app_name, component_details):
         (ret_data, comp_data) = ({}, {})
-        for _, component_data in component_details.iteritems():
+        for _, component_data in component_details.items():
             comp_data.update(component_data['component_ref'].get_components_summary(app_name, \
                 component_data['component_data']))
         ret_data[app_name] = comp_data

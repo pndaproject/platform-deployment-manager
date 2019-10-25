@@ -85,19 +85,19 @@ class HBaseAppplicationSummary(object):
         try:
             connection = happybase.Connection(self._hbase_host)
             table = connection.table("platform_applications")
-            row = table.row(key, columns=['cf:status'])
-            status = row['cf:status']
+            row = table.row(key, columns=[b'cf:status'])
+            status = row[b'cf:status']
         except TTransportException as error_message:
             logging.error(str(error_message))
         finally:
             connection.close()
-        return status
+        return status.decode()
 
     def get_flink_job_id(self, key):
         jid = ''
         data = self._read_from_db(key)
         if data:
-            data = json.loads(data['cf:component_data'])
+            data = json.loads(data[b'cf:component_data'])
             for component in data:
                 if 'flink' in component:
                     tracking_url = data[component]['tracking_url']
@@ -111,9 +111,9 @@ class HBaseAppplicationSummary(object):
             summary_data = self._read_from_db(application)
             if summary_data:
                 record[application].update({
-                    'aggregate_status': summary_data['cf:aggregate_status']
+                    'aggregate_status': summary_data[b'cf:aggregate_status']
                 })
-                record[application].update(json.loads(summary_data['cf:component_data']))
+                record[application].update(json.loads(summary_data[b'cf:component_data']))
             else:
                 record[application].update({
                     'status': 'Not Available'

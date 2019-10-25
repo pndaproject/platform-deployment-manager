@@ -131,7 +131,7 @@ class DeploymentManager(object):
         package_metadata = None
         if self._package_registrar.package_exists(package):
             package_metadata = self._package_registrar.get_package_metadata(package)
-            print package_metadata
+            logging.debug(package_metadata)
             package_owner = package_metadata['metadata']['user']
             package_exists = True
         return package_owner, package_exists, package_metadata

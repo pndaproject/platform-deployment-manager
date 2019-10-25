@@ -1,9 +1,6 @@
 argparse==1.2.1
-backports-abc==0.5
-backports.ssl-match-hostname==3.5.0.1
 certifi==2017.4.17
 cffi==1.9.1
-cm-api==14.0.0
 cryptography==1.7.1
 enum34==1.1.6
 happybase==1.0.0
@@ -27,4 +24,3 @@ thrift==0.9.3
 thriftpy==0.3.9
 tornado==4.4.2
 tornado-cors==0.6.0
-wsgiref==0.1.2

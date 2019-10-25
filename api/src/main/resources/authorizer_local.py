@@ -57,7 +57,7 @@ class AuthorizerLocal(Authorizer):
                     authorize = True
                     logging.debug("authorize: %s for %s", authorize, grant_rule)
                     break
-            except KeyError, ex:
+            except KeyError as ex:
                 logging.warning("missing attribute %s", ex)
 
         if not authorize:

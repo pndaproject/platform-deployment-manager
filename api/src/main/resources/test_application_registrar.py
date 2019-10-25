@@ -37,8 +37,8 @@ class ApplicationRegistrarTests(unittest.TestCase):
 
         hbase_mock.return_value.table.return_value.put.assert_called_once_with(
             'aname',
-            {'cf:package_name': 'pname', 'cf:status': ApplicationState.NOTCREATED, 'cf:overrides': '{"over": "ride"}',
-             'cf:defaults': '{"def": "ault"}', 'cf:name': 'aname'})
+            {b'cf:package_name': 'pname', b'cf:status': ApplicationState.NOTCREATED, b'cf:overrides': '{"over": "ride"}',
+             b'cf:defaults': '{"def": "ault"}', b'cf:name': 'aname'})
 
     @patch('happybase.Connection')
     def test_table_exists(self, hbase_mock):
@@ -48,26 +48,26 @@ class ApplicationRegistrarTests(unittest.TestCase):
         hbase_mock.return_value.create_table.side_effect = throwerr
         registrar = HbaseApplicationRegistrar('1.2.3.4')
         registrar.set_application_status('name', ApplicationState.CREATED)
-        hbase_mock.return_value.table.return_value.put.assert_called_once_with('name', {'cf:information': None,
-                                                                                        'cf:status': ApplicationState.CREATED})
+        hbase_mock.return_value.table.return_value.put.assert_called_once_with('name', {b'cf:information': None,
+                                                                                        b'cf:status': ApplicationState.CREATED})
 
     @patch('happybase.Connection')
     def test_set_application_status(self, hbase_mock):
         registrar = HbaseApplicationRegistrar('1.2.3.4')
         registrar.set_application_status('name', ApplicationState.CREATED)
-        hbase_mock.return_value.table.return_value.put.assert_called_once_with('name', {'cf:information': None,
-                                                                                        'cf:status': ApplicationState.CREATED})
+        hbase_mock.return_value.table.return_value.put.assert_called_once_with('name', {b'cf:information': None,
+                                                                                        b'cf:status': ApplicationState.CREATED})
 
     @patch('happybase.Connection')
     def test_set_create_data(self, hbase_mock):
         registrar = HbaseApplicationRegistrar('1.2.3.4')
         registrar.set_create_data('name', {'create': 'data'})
         hbase_mock.return_value.table.return_value.put.assert_called_once_with('name',
-                                                                               {'cf:create_data': '{"create": "data"}'})
+                                                                               {b'cf:create_data': '{"create": "data"}'})
 
     @patch('happybase.Connection')
     def test_get_create_data(self, hbase_mock):
-        hbase_mock.return_value.table.return_value.row.return_value = {'cf:create_data': '{"create": "data"}'}
+        hbase_mock.return_value.table.return_value.row.return_value = {b'cf:create_data': '{"create": "data"}'}
 
         registrar = HbaseApplicationRegistrar('1.2.3.4')
         result = registrar.get_create_data('name')
@@ -84,11 +84,11 @@ class ApplicationRegistrarTests(unittest.TestCase):
     @patch('happybase.Connection')
     def test_get_application(self, hbase_mock):
         hbase_mock.return_value.table.return_value.row.return_value = {
-            'cf:overrides': '{"over": "ride"}',
-            'cf:defaults': '{"def": "aults"}',
-            'cf:name': 'name',
-            'cf:package_name': 'packagename',
-            'cf:status': ApplicationState.CREATED
+            b'cf:overrides': '{"over": "ride"}',
+            b'cf:defaults': '{"def": "aults"}',
+            b'cf:name': 'name',
+            b'cf:package_name': 'packagename',
+            b'cf:status': ApplicationState.CREATED
         }
 
         registrar = HbaseApplicationRegistrar('1.2.3.4')
@@ -109,7 +109,7 @@ class ApplicationRegistrarTests(unittest.TestCase):
 
     @patch('happybase.Connection')
     def test_application_exists(self, hbase_mock):
-        hbase_mock.return_value.table.return_value.row.return_value = {'cf:status': ApplicationState.CREATED}
+        hbase_mock.return_value.table.return_value.row.return_value = {b'cf:status': ApplicationState.CREATED}
 
         registrar = HbaseApplicationRegistrar('1.2.3.4')
         result = registrar.application_exists('name')
@@ -123,8 +123,8 @@ class ApplicationRegistrarTests(unittest.TestCase):
     @patch('happybase.Connection')
     def test_list_packages(self, hbase_mock):
         hbase_mock.return_value.table.return_value.scan.return_value = [
-            ('name1', {'cf:status': ApplicationState.CREATED, 'cf:package_name': 'p'}),
-            ('name2', {'cf:status': ApplicationState.NOTCREATED, 'cf:package_name': 'p'})]
+            ('name1', {b'cf:status': ApplicationState.CREATED, b'cf:package_name': 'p'}),
+            ('name2', {b'cf:status': ApplicationState.NOTCREATED, b'cf:package_name': 'p'})]
 
         registrar = HbaseApplicationRegistrar('1.2.3.4')
         result = registrar.list_applications()
