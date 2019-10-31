@@ -181,14 +181,16 @@ class Creator(object):
         return props
 
     def _fill_properties(self, local_file, props):
-        with open(local_file, "r") as myfile:
-            file_contents = myfile.read()
+        try:
+            with open(local_file, "r") as myfile:
+                file_contents = myfile.read()
+            new_file_contents = string.Template(file_contents).safe_substitute(props)
+            with open(local_file, "w") as myfile:
+                myfile.write(new_file_contents)
+        except UnicodeDecodeError:
+            # for binary files do not substitute
+            pass
 
-        new_file_contents = string.Template(
-            file_contents).safe_substitute(props)
-
-        with open(local_file, "w") as myfile:
-            myfile.write(new_file_contents)
 
     def _auto_fill_app_properties(self, staged_component_path, props):
         app_properties_file_path = '%s/application.properties' % staged_component_path
