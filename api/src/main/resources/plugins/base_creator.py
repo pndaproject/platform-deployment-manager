@@ -36,7 +36,6 @@ import logging
 import json
 import string
 import collections
-import getpass
 import requests
 import hbase_descriptor
 import opentsdb_descriptor
@@ -58,7 +57,7 @@ class Creator(object):
         self._namespace = namespace
         self._hdfs_client = HDFS(environment['webhdfs_host'],
                                  environment['webhdfs_port'],
-                                 'hdfs')
+                                 environment['webhdfs_user'])
 
         if 'yarn_resource_manager_host' in environment:
             self._yarn_resource_manager = "%s:%s" % (environment['yarn_resource_manager_host'],
@@ -91,11 +90,12 @@ class Creator(object):
         '''
         pass
 
-    def create_component(self, staged_component_path, application_name, component, properties):
+    def create_component(self, staged_component_path, application_name, user_name, component, properties):
         '''
         Creates component of the package of given component type
 
         application_name - name of the application
+        user_name - user to run the application as
         components - a list of component maps following above example structure
         properties - a full map of properties that can be used as needed
 
@@ -103,6 +103,15 @@ class Creator(object):
               with this application creation by the Deployment Manager. Therefore
               it makes sense to include enough information to be able to
               implement destroy_components.
+        '''
+        pass
+
+    def assert_application_properties(self, override_properties, default_properties):
+        '''
+        Assert application properties before creating the application
+
+        override_properties - properties overrided by user
+        default_properties - default properties present in package
         '''
         pass
 
@@ -145,7 +154,7 @@ class Creator(object):
         '''
         pass
 
-    def _instantiate_properties(self, application_name, component, property_overrides):
+    def _instantiate_properties(self, application_name, user_name, component, property_overrides):
         logging.debug(
             "_instantiate_properties %s %s",
             component,
@@ -166,19 +175,22 @@ class Creator(object):
         props['component_application'] = application_name
         props['component_name'] = component['component_name']
         props['component_job_name'] = '%s-%s-job' % (props['component_application'], props['component_name'])
-        props['component_hdfs_root'] = '/user/%s/%s' % (application_name, component['component_name'])
-        props['application_user'] = self._get_application_user()
+        props['application_hdfs_root'] = '/pnda/system/deployment-manager/applications/%s/%s' % (user_name, application_name)
+        props['component_hdfs_root'] = '%s/%s' % (props['application_hdfs_root'], component['component_name'])
+        props['application_user'] = user_name
         return props
 
     def _fill_properties(self, local_file, props):
-        with open(local_file, "r") as myfile:
-            file_contents = myfile.read()
+        try:
+            with open(local_file, "r") as myfile:
+                file_contents = myfile.read()
+            new_file_contents = string.Template(file_contents).safe_substitute(props)
+            with open(local_file, "w") as myfile:
+                myfile.write(new_file_contents)
+        except UnicodeDecodeError:
+            # for binary files do not substitute
+            pass
 
-        new_file_contents = string.Template(
-            file_contents).safe_substitute(props)
-
-        with open(local_file, "w") as myfile:
-            myfile.write(new_file_contents)
 
     def _auto_fill_app_properties(self, staged_component_path, props):
         app_properties_file_path = '%s/application.properties' % staged_component_path
@@ -233,18 +245,19 @@ class Creator(object):
 
         return result
 
-    def create_components(self, stage_path, application_name, components,
+    def create_components(self, stage_path, application_name, user_name, components,
                           components_overrides):
         results = []
-        for component_name, component in components.iteritems():
+        for component_name, component in components.items():
             staged_component_path = '%s/%s' % (stage_path, component['component_path'])
             overrides = components_overrides.get(component_name) if components_overrides is not None else {}
             overrides = {} if overrides is None else overrides
-            merged_props = self._instantiate_properties(application_name, component, overrides)
+            merged_props = self._instantiate_properties(application_name, user_name, component, overrides)
             descriptor_result = self._create_optional_descriptors(staged_component_path, component, merged_props)
             self._auto_fill_app_properties(staged_component_path, merged_props)
-            result = self.create_component(staged_component_path, application_name, component, merged_props)
+            result = self.create_component(staged_component_path, application_name, user_name, component, merged_props)
             result['component_name'] = component_name
+            result['application_hdfs_root'] = merged_props['application_hdfs_root']
             result['component_job_name'] = merged_props['component_job_name']
             result['descriptors'] = descriptor_result
             results.append(result)
@@ -269,9 +282,9 @@ class Creator(object):
     def validate_components(self, components):
         logging.debug("validate_components: %s", components)
         result = {}
-        for component_name, component in components.iteritems():
+        for component_name, component in components.items():
             validation_errors = self.validate_component(component)
-            if len(validation_errors) > 0:
+            if validation_errors:
                 result[component_name] = validation_errors
         return result
 
@@ -329,10 +342,3 @@ class Creator(object):
                     if result is None or self._get_yarn_start_time(app) > self._get_yarn_start_time(result):
                         result = app
         return result
-
-    def _get_application_user(self):
-        application_user = getpass.getuser()
-        # if running as root, make sure to start the application under a different user.
-        if application_user == 'root':
-            application_user = self._environment['application_default_user']
-        return application_user

@@ -22,24 +22,15 @@ either express or implied.
 
 import os
 import tarfile
-import StringIO
+from io import BytesIO
 import logging
 import traceback
-import spur
-from pywebhdfs.webhdfs import PyWebHdfsClient
+import time
+from threading import Thread
 
 import requests
-from cm_api.api_client import ApiResource
-
-
-def connect_cm(cm_api, cm_username, cm_password):
-    api = ApiResource(
-        cm_api,
-        version=6,
-        username=cm_username,
-        password=cm_password)
-    return api
-
+import spur
+from pywebhdfs.webhdfs import PyWebHdfsClient
 
 def get_nameservice(cm_host, cluster_name, service_name, user_name='admin', password='admin'):
     request_url = 'http://%s:7180/api/v11/clusters/%s/services/%s/nameservices' % (cm_host,
@@ -54,14 +45,43 @@ def get_nameservice(cm_host, cluster_name, service_name, user_name='admin', pass
             logging.debug("Found named service %s for %s", nameservice, service_name)
     return nameservice
 
-
-def fill_hadoop_env(env):
+def update_hadoop_env(env):
+    # Update the env in a way that ensure values are only updated in the main descriptor and never removed
+    # so that any caller will always be able to query the values it expects to find in the env descriptor
+    #   1. copy the environment descriptor
+    #   2. update the temporary copy
+    #   3. push the temporary values into the main descriptor
+    tmp_env = dict(env)
+    logging.debug('Updating environment descriptor')
     if env['hadoop_distro'] == 'CDH':
-        fill_hadoop_env_cdh(env)
+        logging.error('CDH is not a supported hadoop distribution')
+    elif env['hadoop_distro'] == 'HDP':
+        fill_hadoop_env_hdp(tmp_env)
     else:
-        fill_hadoop_env_hdp(env)
-
+        logging.warning('Skipping update_hadoop_env for hadoop distro "%s"', env['hadoop_distro'])
+    logging.debug('Updated environment descriptor')
+    for key in tmp_env:
+        # Dictionary get/put operations are atomic so inherently thread safe and don't need a lock
+        env[key] = tmp_env[key]
     logging.debug(env)
+
+def monitor_hadoop_env(env, config):
+    while True:
+        try:
+            update_hadoop_env(env)
+        except Exception:
+            logging.error("Environment sync failed")
+            logging.error(traceback.format_exc())
+
+        sleep_seconds = config['environment_sync_interval']
+        logging.debug('Next environment sync will be in %s seconds', sleep_seconds)
+        time.sleep(sleep_seconds)
+
+def fill_hadoop_env(env, config):
+    update_hadoop_env(env)
+    env_monitor_thread = Thread(target=monitor_hadoop_env, args=[env, config])
+    env_monitor_thread.daemon = True
+    env_monitor_thread.start()
 
 def ambari_request(ambari, uri):
     hadoop_manager_ip = ambari[0]
@@ -85,7 +105,7 @@ def get_hdfs_hdp(ambari, cluster_name):
 def component_host(component_detail):
     host_list = ''
     for host_detail in component_detail['host_components']:
-        if len(host_list) > 0:
+        if host_list:
             host_list += ','
         host_list += host_detail['HostRoles']['host_name']
     return host_list
@@ -100,7 +120,6 @@ def fill_hadoop_env_hdp(env):
 
     logging.debug('getting service list for %s', cluster_name)
     env['cm_status_links'] = {}
-    nameservice = None
 
     env['name_node'] = get_hdfs_hdp(ambari, cluster_name)
 
@@ -151,105 +170,7 @@ def fill_hadoop_env_hdp(env):
 
             elif role_name == "HIVE_SERVER":
                 env['hive_server'] = '%s' % component_host(component_detail)
-                env['hive_port'] = '10000'
-
-    logging.debug(env)
-
-def fill_hadoop_env_cdh(env):
-    # pylint: disable=E1103
-    api = connect_cm(
-        env['hadoop_manager_host'],
-        env['hadoop_manager_username'],
-        env['hadoop_manager_password'])
-
-    for cluster_detail in api.get_all_clusters():
-        cluster_name = cluster_detail.name
-        break
-
-    logging.debug('getting ' + cluster_name)
-    env['cm_status_links'] = {}
-
-    cluster = api.get_cluster(cluster_name)
-    for service in cluster.get_all_services():
-        env['cm_status_links']['%s' % service.name] = service.serviceUrl
-        if service.type == "HDFS":
-            nameservice = get_nameservice(env['hadoop_manager_host'], cluster_name,
-                                              service.name,
-                                              user_name=env['hadoop_manager_username'],
-                                              password=env['hadoop_manager_password'])
-            if nameservice:
-                env['name_node'] = 'hdfs://%s' % nameservice
-            for role in service.get_all_roles():
-                if not nameservice and role.type == "NAMENODE":
-                    env['name_node'] = 'hdfs://%s:8020' % api.get_host(role.hostRef.hostId).hostname
-                if role.type == "HTTPFS":
-                    env['webhdfs_host'] = '%s' % api.get_host(role.hostRef.hostId).ipAddress
-                    env['webhdfs_port'] = '14000'
-        elif service.type == "YARN":
-            for role in service.get_all_roles():
-                if role.type == "RESOURCEMANAGER":
-                    if 'yarn_resource_manager_host' in env:
-                        rm_instance = '_backup'
-                    else:
-                        rm_instance = ''
-                    env['yarn_resource_manager_host%s' % rm_instance] = '%s' % api.get_host(role.hostRef.hostId).hostname
-                    env['yarn_resource_manager_port%s' % rm_instance] = '8088'
-                    env['yarn_resource_manager_mr_port%s' % rm_instance] = '8032'
-                if role.type == "NODEMANAGER":
-                    if 'yarn_node_managers' in env:
-                        env['yarn_node_managers'] = '%s,%s' % (env['yarn_node_managers'], api.get_host(role.hostRef.hostId).hostname)
-                    else:
-                        env['yarn_node_managers'] = '%s' % api.get_host(
-                            role.hostRef.hostId).hostname
-        elif service.type == "MAPREDUCE":
-            for role in service.get_all_roles():
-                if role.type == "JOBTRACKER":
-                    env['job_tracker'] = '%s:8021' % api.get_host(role.hostRef.hostId).hostname
-                    break
-        elif service.type == "ZOOKEEPER":
-            for role in service.get_all_roles():
-                if role.type == "SERVER":
-                    if 'zookeeper_quorum' in env:
-                        env['zookeeper_quorum'] += ',%s' % api.get_host(role.hostRef.hostId).hostname
-                    else:
-                        env['zookeeper_quorum'] = '%s' % api.get_host(role.hostRef.hostId).hostname
-                        env['zookeeper_port'] = '2181'
-        elif service.type == "HBASE":
-            for role in service.get_all_roles():
-                if role.type == "HBASERESTSERVER":
-                    env['hbase_rest_server'] = '%s' % api.get_host(role.hostRef.hostId).hostname
-                    env['hbase_rest_port'] = '20550'
-                elif role.type == "HBASETHRIFTSERVER":
-                    env['hbase_thrift_server'] = '%s' % api.get_host(role.hostRef.hostId).hostname
-        elif service.type == "OOZIE":
-            for role in service.get_all_roles():
-                if role.type == "OOZIE_SERVER":
-                    env['oozie_uri'] = 'http://%s:11000/oozie' % api.get_host(role.hostRef.hostId).hostname
-                    break
-        elif service.type == "HIVE":
-            for role in service.get_all_roles():
-                if role.type == "HIVESERVER2":
-                    env['hive_server'] = '%s' % api.get_host(role.hostRef.hostId).hostname
-                    env['hive_port'] = '10000'
-                    break
-        elif service.type == "IMPALA":
-            for role in service.get_all_roles():
-                if role.type == "IMPALAD":
-                    env['impala_host'] = '%s' % api.get_host(role.hostRef.hostId).hostname
-                    env['impala_port'] = '21050'
-                    break
-        elif service.type == "KUDU":
-            for role in service.get_all_roles():
-                if role.type == "KUDU_MASTER":
-                    env['kudu_host'] = '%s' % api.get_host(role.hostRef.hostId).hostname
-                    env['kudu_port'] = '7051'
-                    break
-        elif service.type == "HUE":
-            for role in service.get_all_roles():
-                if role.type == "HUE_SERVER":
-                    env['hue_host'] = '%s' % api.get_host(role.hostRef.hostId).hostname
-                    env['hue_port'] = '8888'
-                    break
+                env['hive_port'] = '10001'
 
 def tree(archive_filepath):
     file_handle = file(archive_filepath, 'rb')
@@ -267,7 +188,6 @@ def tree(archive_filepath):
 
     return root
 
-
 def canonicalize(path):
     path = path.replace('\\', '/')
     path = path.replace('//', '/')
@@ -280,14 +200,14 @@ class HDFS(object):
             host=host, port=port, user_name=user, timeout=None)
         logging.debug('webhdfs = %s@%s:%s', user, host, port)
 
-    def recursive_copy(self, local_path, remote_path, exclude=None):
+    def recursive_copy(self, local_path, remote_path, exclude=None, permission=755):
 
         if exclude is None:
             exclude = []
 
         c_path = canonicalize(remote_path)
         logging.debug('making %s', c_path)
-        self._hdfs.make_dir(c_path)
+        self._hdfs.make_dir(c_path, permission=permission)
 
         fs_g = os.walk(local_path)
         for dpath, dnames, fnames in fs_g:
@@ -298,7 +218,7 @@ class HDFS(object):
                         '%s/%s/%s' %
                         (remote_path, relative_path, dname))
                     logging.debug('making %s', c_path)
-                    self._hdfs.make_dir(c_path)
+                    self._hdfs.make_dir(c_path, permission=permission)
 
             for fname in fnames:
                 if fname not in exclude:
@@ -310,25 +230,26 @@ class HDFS(object):
                         '%s/%s/%s' %
                         (remote_path, relative_path, fname))
                     logging.debug('creating %s', c_path)
-                    self._hdfs.create_file(c_path, data, overwrite=True)
+                    self._hdfs.create_file(c_path, data, overwrite=True, permission=permission)
                     data.close()
 
-    def make_dir(self, path):
+    def make_dir(self, path, permission=755):
 
         logging.debug('make_dir: %s', path)
 
-        self._hdfs.make_dir(canonicalize(path))
+        self._hdfs.make_dir(canonicalize(path), permission=permission)
 
-    def create_file(self, data, remote_file_path):
+    def create_file(self, data, remote_file_path, permission=755):
 
         logging.debug('create_file: %s', remote_file_path)
 
-        sio = StringIO.StringIO(data)
+        sio = BytesIO(data)
 
         self._hdfs.create_file(
             canonicalize(remote_file_path),
             sio,
-            overwrite=True)
+            overwrite=True,
+            permission=permission)
 
     def append_file(self, data, remote_file_path):
 
@@ -361,6 +282,13 @@ class HDFS(object):
 
         self._hdfs.delete_file_dir(canonicalize(path), recursive)
 
+    def file_exists(self, path):
+
+        try:
+            self._hdfs.get_file_dir_status(path)
+            return True
+        except:
+            return False
 
 def exec_ssh(host, user, key, ssh_commands):
     shell = spur.SshShell(
@@ -382,7 +310,7 @@ def exec_ssh(host, user, key, ssh_commands):
 
 def dict_to_props(dict_props):
     props = []
-    for key, value in dict_props.iteritems():
+    for key, value in dict_props.items():
         props.append('%s=%s' % (key, value))
     return '\n'.join(props)
 

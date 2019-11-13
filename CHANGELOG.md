@@ -3,10 +3,56 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.0] 2018-08-28
+### Added
+- PNDA-4560: Add authorization framework and authorize all API calls
+- PNDA-4562: Supply user.name when calling package repository
+
+### Changed
+- PNDA-4405: Require user and package fields in create application API
+- PNDA-4389: Reject packages containing upstart.conf files
+- PNDA-4525: Deprecate Ubuntu 14.04
+- PNDA-4511: Use a config property to set which spark-submit command to call for spark streaming components
+- PNDA-4398: Support Spark 2 for Oozie jobs
+- PNDA-4546: Accept username as a URL parameter instead of in the request body and apply basic authorisation so only the user who created an application (or a special admin user defined in the dm-config file) can modify it
+- PNDA-4613: Rename user parameter for deployment manager API from user to user.name to match the default knox behaviour
+- PNDA-4560: Remove admin_user setting from unit tests
+- PNDA-4500: Redesigned application detailed summary and added flink application detailed summary
+
+### Fixed
+- PNDA-4218: Fix application deletion when app name is an HDFS username
+- PNDA-4012: Add missing application type in application detailed summary
+- PNDA-4009: Improve application status naming in application detailed summary
+- PNDA-4237: Failure details provided in application summary info if an application fails to submit to YARN
+- PNDA-4796: Flink-stop added to stop the flink applications properly
+
+## [1.0.0] 2018-02-10
+### Added:
+- PNDA-439: Support deploying/running app as specific user
+- PNDA-2834: Better and more detailed application status reporting
+- PNDA-3654: Support for spark2 streaming applications
+- PNDA-4007: Ability to specify default queue configuration for oozie components
+
+### Changed
+- PNDA-3555: Place files in HDFS for packages and applications under `/pnda/system/deployment-manager/<packages|applications>`.
+- PNDA-3601: Disable emailtext in Jenkins file and replace it with notifier stage and job
+
+### Fixed
+- PNDA-3354: Fix error causing exception to appear in log when trying to deploy packages that do not exist
+- PNDA-2282: Improved reporting in error scenarios
+- PNDA-3613: Deployment manager tests require sudo to run but should not
+- PNDA-4056: Automatically sync environment descriptor
+
 ## [0.5.0] 2017-11-24
 ### Added:
 - PNDA-3330: Change to use a default application user instead of the hdfs user.
 - PNDA-2445: Support for Hortonworks HDP
+- PNDA-439: Application create API requires a user to run the application as.
+- PNDA-3345: Provide the app_packages HDFS location (from Pillar) to applications deployed with DM
+- PNDA-3528: Add default queue placement for oozie jobs.
+
+### Changed
+- PNDA-3486: Place files in HDFS for components under `/user/deployment-manager/applications/<user>/<application>/<component>` to avoid potential clashes using the existing path of `/user/<application>`.
 
 ## [0.4.0] 2017-05-23
 ### Added

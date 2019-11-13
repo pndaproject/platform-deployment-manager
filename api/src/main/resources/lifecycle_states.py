@@ -36,3 +36,4 @@ class ApplicationState(object):
     STARTED = "STARTED"
     STOPPING = "STOPPING"
     NOTCREATED = "NOTCREATED"
+    COMPLETED = "COMPLETED"

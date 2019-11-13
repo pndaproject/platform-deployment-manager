@@ -1,9 +1,9 @@
 """
-Name:       sparkStreaming.py
-Purpose:    Submits spark streaming jobs based on application package
+Name:       flink.py
+Purpose:    Submits flink batch/streaming jobs based on application package
 Author:     PNDA team
 
-Created:    21/03/2016
+Created:    02/03/2018
 
 Copyright (c) 2016 Cisco and/or its affiliates.
 
@@ -30,23 +30,18 @@ import deployer_utils
 from plugins.base_common import Common
 
 
-class SparkStreamingCreator(Common):
+class FlinkCreator(Common):
 
     def validate_component(self, component):
         errors = []
         file_list = component['component_detail']
         if 'application.properties' not in file_list:
             errors.append('missing file application.properties')
-        if 'log4j.properties' not in file_list:
-            errors.append('missing file log4j.properties')
-        if 'upstart.conf' in file_list:
-            errors.append('Support for user supplied upstart.conf files has been deprecated, ' +
-                          'the deployment manager will supply one automatically. ' +
-                          'Please see PNDA example-applications for usage.')
+
         return errors
 
     def get_component_type(self):
-        return 'sparkStreaming'
+        return 'flink'
 
     def create_component(self, staged_component_path, application_name, user_name, component, properties):
         logging.debug("create_component: %s %s %s %s", application_name, user_name, json.dumps(component), properties)
@@ -60,45 +55,50 @@ class SparkStreamingCreator(Common):
         root_user = self._environment['cluster_root_user']
         target_host = 'localhost'
 
-        if 'component_spark_version' not in properties:
-            properties['component_spark_version'] = '1'
-        if 'component_spark_submit_args' not in properties:
-            properties['component_spark_submit_args'] = ''
+        if 'component_flink_version' not in properties:
+            properties['component_flink_version'] = '1.4'
+        if 'component_flink_config_args' not in properties:
+            properties['component_flink_config_args'] = '-yn 1'
         if 'component_py_files' not in properties:
             properties['component_py_files'] = ''
+        if 'component_flink_job_type' not in properties:
+            properties['component_flink_job_type'] = 'streaming'
+        if 'component_application_args' not in properties:
+            properties['component_application_args'] = ''
 
-        if 'upstart.conf' in component['component_detail']:
-            # old style applications - reject these
-            raise Exception('Support for user supplied upstart.conf files has been deprecated, ' +
-                            'the deployment manager will supply one automatically. ' +
-                            'Please see PNDA example-applications for usage.')
+        java_app = None
+        if 'component_main_jar' in properties and 'component_main_class' in properties:
+            java_app = True
+        elif 'component_main_py' in properties:
+            java_app = False
+            flink_lib_dir = properties['environment_flink_lib_dir']
+            for jar in os.listdir(flink_lib_dir):
+                if os.path.isfile(os.path.join(flink_lib_dir, jar)) and 'flink-python' in jar:
+                    properties['flink_python_jar'] = '%s/%s' % (flink_lib_dir, jar)
         else:
-            # new style applications that don't need to provide upstart.conf or yarn-kill.py
-            if 'component_main_jar' in properties and 'component_main_class' not in properties:
-                raise Exception('properties.json must contain "main_class" for %s sparkStreaming %s' % (application_name, component['component_name']))
+            raise Exception('properties.json must contain "main_jar or main_py" for %s flink %s' % (application_name, component['component_name']))
 
-            java_app = None
-            if 'component_main_jar' in properties:
-                java_app = True
-            elif 'component_main_py' in properties:
-                java_app = False
+        this_dir = os.path.dirname(os.path.realpath(__file__))
+        copy(os.path.join(this_dir, 'flink-stop.py'), staged_component_path)
+        service_script = 'flink.systemd.service.tpl' if java_app else 'flink.systemd.service.py.tpl'
+        service_script_install_path = '/usr/lib/systemd/system/%s.service' % service_name
+        if 'component_respawn_type' not in properties:
+            if properties['component_flink_job_type'] == 'batch':
+                properties['component_respawn_type'] = 'no'
             else:
-                raise Exception('properties.json must contain "main_jar or main_py" for %s sparkStreaming %s' % (application_name, component['component_name']))
-
-            this_dir = os.path.dirname(os.path.realpath(__file__))
-            copy(os.path.join(this_dir, 'yarn-kill.py'), staged_component_path)
-            service_script = 'systemd.service.tpl' if java_app else 'systemd.service.py.tpl'
-            service_script_install_path = '/usr/lib/systemd/system/%s.service' % service_name
-            if 'component_respawn_type' not in properties:
                 properties['component_respawn_type'] = 'always'
-            if 'component_respawn_timeout_sec' not in properties:
+
+        if 'component_respawn_timeout_sec' not in properties:
+            if properties['component_flink_job_type'] == 'batch':
+                properties['component_respawn_timeout_sec'] = '0'
+            else:
                 properties['component_respawn_timeout_sec'] = '2'
-            copy(os.path.join(this_dir, service_script), staged_component_path)
+
+        copy(os.path.join(this_dir, service_script), staged_component_path)
 
         self._fill_properties(os.path.join(staged_component_path, service_script), properties)
-        self._fill_properties(os.path.join(staged_component_path, 'log4j.properties'), properties)
         self._fill_properties(os.path.join(staged_component_path, 'application.properties'), properties)
-        self._fill_properties(os.path.join(staged_component_path, 'yarn-kill.py'), properties)
+        self._fill_properties(os.path.join(staged_component_path, 'flink-stop.py'), properties)
 
         mkdircommands = []
         mkdircommands.append('mkdir -p %s' % remote_component_tmp_path)
@@ -108,18 +108,11 @@ class SparkStreamingCreator(Common):
         os.system("scp -i %s -o StrictHostKeyChecking=no %s %s@%s:%s"
                   % (key_file, staged_component_path + '/*', root_user, target_host, remote_component_tmp_path))
 
-        for node in self._environment['yarn_node_managers'].split(','):
-            deployer_utils.exec_ssh(node, root_user, key_file, ['mkdir -p %s' % remote_component_tmp_path])
-            os.system("scp -i %s -o StrictHostKeyChecking=no %s %s@%s:%s"
-                      % (key_file, staged_component_path + '/log4j.properties', root_user, node, remote_component_tmp_path + '/log4j.properties'))
-            deployer_utils.exec_ssh(node, root_user, key_file,
-                                    ['sudo mkdir -p %s' % remote_component_install_path,
-                                     'sudo mv %s %s' % (remote_component_tmp_path + '/log4j.properties', remote_component_install_path + '/log4j.properties')])
-
         commands = []
         commands.append('sudo cp %s/%s %s' % (remote_component_tmp_path, service_script, service_script_install_path))
         commands.append('sudo cp %s/* %s' % (remote_component_tmp_path, remote_component_install_path))
-        commands.append('sudo chmod a+x %s/yarn-kill.py' % (remote_component_install_path))
+        commands.append('sudo chmod a+x %s/flink-stop.py' % (remote_component_install_path))
+
         if 'component_main_jar' in properties:
             commands.append('cd %s && sudo jar uf %s application.properties' % (remote_component_install_path, properties['component_main_jar']))
         commands.append('sudo rm -rf %s' % (remote_component_tmp_path))

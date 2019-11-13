@@ -29,9 +29,12 @@ from Hbase_thrift import AlreadyExists
 from package_parser import PackageParser
 from deployer_utils import HDFS
 
+from exceptiondef import FailedConnection
+
+from hbase_utils import encode,decode
 
 class HbasePackageRegistrar(object):
-    COLUMN_DEPLOY_STATUS = "cf:deploy_status"
+    COLUMN_DEPLOY_STATUS = 'cf:deploy_status'
 
     def __init__(self, hbase_host, hdfs_host, hdfs_user, hdfs_port, package_local_dir_path):
         self._hbase_host = hbase_host
@@ -41,8 +44,20 @@ class HbasePackageRegistrar(object):
         self._hdfs_client = HDFS(hdfs_host, hdfs_port, hdfs_user)
         self._parser = PackageParser()
         self._table_name = 'platform_packages'
-        self._package_hdfs_dir_path = "/user/pnda/application_packages"
+        self._dm_root_dir_path = "/pnda/system/deployment-manager"
+        self._package_hdfs_dir_path = "%s/packages" % self._dm_root_dir_path
         self._package_local_dir_path = package_local_dir_path
+
+        try:
+            if hdfs_host is not None:
+                self._hdfs_client.make_dir(self._dm_root_dir_path, permission=755)
+                self._hdfs_client.make_dir(self._package_hdfs_dir_path, permission=600)
+                logging.debug("packages HDFS folder created")
+            else:
+                logging.debug("not creating packages HDFS folder as it is not required")
+        except AlreadyExists:
+            logging.debug("not creating packages HDFS folder as it already exists")
+
         if self._hbase_host is not None:
             connection = happybase.Connection(self._hbase_host)
             try:
@@ -53,9 +68,10 @@ class HbasePackageRegistrar(object):
             finally:
                 connection.close()
 
-    def set_package(self, package_name, package_data_path):
+    def set_package(self, package_name, package_data_path, user):
         logging.debug("Storing %s", package_name)
         metadata = self._parser.get_package_metadata(package_data_path)
+        metadata['user'] = user
         key, data = self.generate_record(metadata)
         self._write_to_hdfs(package_data_path, data['cf:package_data'])
         self._write_to_db(key, data)
@@ -83,7 +99,7 @@ class HbasePackageRegistrar(object):
     def get_package_data(self, package_name):
         logging.debug("Reading %s", package_name)
         record = self._read_from_db(package_name, ['cf:package_data'])
-        if len(record) == 0:
+        if not record:
             return None
         local_package_path = "%s/%s" % (self._package_local_dir_path, package_name)
         self._read_from_hdfs(record['cf:package_data'], local_package_path)
@@ -93,10 +109,10 @@ class HbasePackageRegistrar(object):
         logging.debug("Reading %s", package_name)
         package_data = self._read_from_db(
             package_name, ['cf:metadata', 'cf:name', 'cf:version'])
-        if len(package_data) == 0:
+        if not package_data:
             return None
-        return {"metadata": json.loads(package_data["cf:metadata"]), "name": package_data[
-            "cf:name"], "version": package_data["cf:version"]}
+        return {"metadata": json.loads(package_data['cf:metadata']), "name": package_data[
+            'cf:name'], "version": package_data['cf:version']}
 
     def package_exists(self, package_name):
         logging.debug("Checking %s", package_name)
@@ -110,7 +126,7 @@ class HbasePackageRegistrar(object):
         """
         logging.debug("Checking %s", package_name)
         package_data = self._read_from_db(package_name, columns=[self.COLUMN_DEPLOY_STATUS])
-        if len(package_data) == 0:
+        if not package_data:
             return None
         # all status is stored as json, so parse it and return it
         deploy_status_as_string = package_data[self.COLUMN_DEPLOY_STATUS]
@@ -119,12 +135,17 @@ class HbasePackageRegistrar(object):
     def list_packages(self):
         logging.debug("List all packages")
 
-        connection = happybase.Connection(self._hbase_host)
+        connection = None
         try:
+            connection = happybase.Connection(self._hbase_host)
             table = connection.table(self._table_name)
-            result = [key for key, _ in table.scan(columns=['cf:name'])]
+            result = [key.decode() for key, _ in table.scan(columns=['cf:name'])]
+        except Exception as exc:
+            logging.debug(str(exc))
+            raise FailedConnection('Unable to connect to the HBase master')
         finally:
-            connection.close()
+            if connection:
+                connection.close()
         return result
 
     def generate_record(self, metadata):
@@ -132,17 +153,18 @@ class HbasePackageRegistrar(object):
             'cf:name': '-'.join(metadata["package_name"].split("-")[:-1]),
             'cf:version': metadata["package_name"].split("-")[-1],
             'cf:metadata': json.dumps(metadata),
-            'cf:package_data': "%s/%s" %  (self._package_hdfs_dir_path, metadata["package_name"])
+            'cf:package_data': "%s/%s" % (self._package_hdfs_dir_path, metadata["package_name"])
         }
 
     def _read_from_db(self, key, columns):
         connection = happybase.Connection(self._hbase_host)
         try:
             table = connection.table(self._table_name)
-            data = table.row(key, columns=columns)
+            data = table.row(encode(key), columns=encode(columns))
         finally:
             connection.close()
-        return data
+        
+        return decode(data)
 
     def _read_from_hdfs(self, source_hdfs_path, dest_local_path):
         self._hdfs_client.stream_file_to_disk(source_hdfs_path, dest_local_path)
@@ -151,7 +173,7 @@ class HbasePackageRegistrar(object):
         connection = happybase.Connection(self._hbase_host)
         try:
             table = connection.table(self._table_name)
-            table.put(key, data)
+            table.put(encode(key), encode(data))
         finally:
             connection.close()
 
@@ -162,7 +184,7 @@ class HbasePackageRegistrar(object):
             data_chunk = source_file.read(chunk_size)
             while data_chunk:
                 if first:
-                    self._hdfs_client.create_file(data_chunk, dest_hdfs_path)
+                    self._hdfs_client.create_file(data_chunk, dest_hdfs_path, permission=600)
                     first = False
                 else:
                     self._hdfs_client.append_file(data_chunk, dest_hdfs_path)

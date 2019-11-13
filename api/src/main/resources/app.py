@@ -22,7 +22,6 @@ either express or implied.
 import sys
 import json
 import logging
-from tornado_cors import CorsMixin
 
 import tornado.httpserver
 import tornado.options
@@ -30,13 +29,15 @@ import tornado.web
 from tornado.ioloop import IOLoop
 from tornado.web import asynchronous
 from tornado.options import define, options
+from tornado_cors import CorsMixin
 
 import package_registrar
 import application_registrar
 import deployer_utils
+import application_summary_registrar
 import deployment_manager
 from deployer_system_test import DeployerRestClientTester
-from exceptiondef import NotFound, ConflictingState, FailedValidation, FailedCreation
+from exceptiondef import NotFound, ConflictingState, FailedValidation, FailedCreation, FailedConnection, Forbidden
 from async_dispatcher import AsyncDispatcher
 from package_repo_rest_client import PackageRepoRestClient
 
@@ -68,19 +69,29 @@ class BaseHandler(CorsMixin, tornado.web.RequestHandler):
             if isinstance(ex, NotFound):
                 logging.info(ex.msg)
                 self.set_status(404)
+                # Format already expected to be JSON when raised
                 self.finish(ex.msg)
             elif isinstance(ex, ConflictingState):
                 logging.info(ex.msg)
                 self.set_status(409)
+                # Format already expected to be JSON when raised
                 self.finish(ex.msg)
             elif isinstance(ex, FailedValidation):
                 logging.info(ex.msg)
                 self.set_status(400)
-                self.finish(ex.msg)
+                self.finish({"information": str(ex.msg)})
+            elif isinstance(ex, Forbidden):
+                logging.info(ex.msg)
+                self.set_status(403)
+                self.finish({"information": str(ex.msg)})
             elif isinstance(ex, FailedCreation):
                 logging.info(ex.msg)
                 self.set_status(500)
-                self.finish(ex.msg)
+                self.finish({"information": str(ex.msg)})
+            elif isinstance(ex, FailedConnection):
+                logging.info(ex.msg)
+                self.set_status(503)
+                self.finish({"information": str(ex.msg)})
             else:
                 self.set_status(500)
                 if "information" in str(ex):
@@ -128,7 +139,7 @@ class EnvironmentHandler(BaseHandler):
     @asynchronous
     def get(self):
         def do_call():
-            self.send_result(dm.get_environment())
+            self.send_result(dm.get_environment(self.get_argument("user.name", default='')))
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
 
@@ -142,7 +153,7 @@ class RepositoryHandler(BaseHandler):
             recency = 1
             if 'recency' in args:
                 recency = int(args['recency'][0])
-            self.send_result(dm.list_repository(recency))
+            self.send_result(dm.list_repository(recency, self.get_argument("user.name", default='')))
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
 
@@ -151,7 +162,7 @@ class PackagesHandler(BaseHandler):
     @asynchronous
     def get(self):
         def do_call():
-            self.send_result(dm.list_packages())
+            self.send_result(dm.list_packages(self.get_argument("user.name", default='')))
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
 
@@ -160,14 +171,14 @@ class PackageHandler(BaseHandler):
     @asynchronous
     def get(self, name):
         def do_call():
-            self.send_result(dm.get_package_info(name))
+            self.send_result(dm.get_package_info(name, self.get_argument("user.name", default='')))
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
 
     @asynchronous
     def put(self, name):
         def do_call():
-            dm.deploy_package(name)
+            dm.deploy_package(name, self.get_argument("user.name"))
             self.send_accepted()
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
@@ -175,7 +186,7 @@ class PackageHandler(BaseHandler):
     @asynchronous
     def delete(self, name):
         def do_call():
-            dm.undeploy_package(name)
+            dm.undeploy_package(name, self.get_argument("user.name"))
             self.send_accepted()
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
@@ -185,7 +196,7 @@ class PackageApplicationsHandler(BaseHandler):
     @asynchronous
     def get(self, name):
         def do_call():
-            self.send_result(dm.list_package_applications(name))
+            self.send_result(dm.list_package_applications(name, self.get_argument("user.name", default='')))
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
 
@@ -194,7 +205,7 @@ class PackageStatusHandler(BaseHandler):
     @asynchronous
     def get(self, name):
         def do_call():
-            package_info = dm.get_package_info(name)
+            package_info = dm.get_package_info(name, self.get_argument("user.name", default=''))
             self.send_result({
                 "status": package_info.get("status"),
                 "information": package_info.get("information", None)
@@ -207,7 +218,7 @@ class ApplicationsHandler(BaseHandler):
     @asynchronous
     def get(self):
         def do_call():
-            self.send_result(dm.list_applications())
+            self.send_result(dm.list_applications(self.get_argument("user.name", default='')))
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
 
@@ -215,12 +226,13 @@ class ApplicationsHandler(BaseHandler):
 class ApplicationDetailHandler(BaseHandler):
     @asynchronous
     def post(self, name, action):
+        user_name = self.get_argument("user.name")
         def do_call():
             if action == 'start':
-                dm.start_application(name)
+                dm.start_application(name, user_name)
                 self.send_accepted()
             elif action == 'stop':
-                dm.stop_application(name)
+                dm.stop_application(name, user_name)
                 self.send_accepted()
             else:
                 self.send_client_error("%s is not a valid action (start|stop)" % action)
@@ -231,32 +243,41 @@ class ApplicationDetailHandler(BaseHandler):
     def get(self, name, action):
         def do_call():
             if action == 'status':
-                app_info = dm.get_application_info(name)
+                app_info = dm.get_application_info(name, self.get_argument("user.name", default=''))
                 ret = {
                     "status": app_info["status"],
                     "information": app_info.get("information", None)
                 }
                 self.send_result(ret)
             elif action == 'detail':
-                self.send_result(dm.get_application_detail(name))
+                self.send_result(dm.get_application_detail(name, self.get_argument("user.name", default='')))
+            elif action == 'summary':
+                self.send_result(dm.get_application_summary(name, self.get_argument("user.name", default='')))
             else:
-                self.send_client_error("%s is not a valid query (status|detail)" % action)
+                self.send_client_error("%s is not a valid query (status|detail|summary)" % action)
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
-
 
 class ApplicationHandler(BaseHandler):
     @asynchronous
     def put(self, aname):
         try:
             request_body = json.loads(self.request.body)
-            pname = request_body['package']
-        except:
+        except ValueError:
             self.send_client_error("Invalid request body")
             return
 
+        if 'package' not in request_body:
+            self.send_client_error("Invalid request body. Missing field 'package'")
+            return
+
+        if 'user' in request_body:
+            self.send_client_error("Invalid request body. User should be passed as URI parameter user.name")
+            return
+        user_name = self.get_argument("user.name")
         def do_call():
-            dm.create_application(pname, aname, request_body)
+            request_body.update({'user': user_name})
+            dm.create_application(request_body['package'], aname, request_body, user_name)
             self.send_accepted()
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
@@ -264,14 +285,15 @@ class ApplicationHandler(BaseHandler):
     @asynchronous
     def get(self, name):
         def do_call():
-            self.send_result(dm.get_application_info(name))
+            self.send_result(dm.get_application_info(name, self.get_argument("user.name", default='')))
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
 
     @asynchronous
     def delete(self, name):
+        user_name = self.get_argument("user.name")
         def do_call():
-            dm.delete_application(name)
+            dm.delete_application(name, user_name)
             self.send_accepted()
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
@@ -299,17 +321,19 @@ def main():
 
     logging.info("Starting up...")
 
-    deployer_utils.fill_hadoop_env(config['environment'])
+    deployer_utils.fill_hadoop_env(config['environment'], config['config'])
 
     package_repository = PackageRepoRestClient(config['config']["package_repository"], config['config']['stage_root'])
     dm = deployment_manager.DeploymentManager(package_repository,
                                               package_registrar.HbasePackageRegistrar(
                                                   config['environment']['hbase_thrift_server'],
                                                   config['environment']['webhdfs_host'],
-                                                  'hdfs',
+                                                  config['environment']['webhdfs_user'],
                                                   config['environment']['webhdfs_port'],
                                                   config['config']['stage_root']),
                                               application_registrar.HbaseApplicationRegistrar(
+                                                  config['environment']['hbase_thrift_server']),
+                                              application_summary_registrar.HBaseAppplicationSummary(
                                                   config['environment']['hbase_thrift_server']),
                                               config['environment'],
                                               config['config'])

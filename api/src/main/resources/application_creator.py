@@ -20,6 +20,7 @@ License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF 
 either express or implied.
 """
 
+import pwd
 import tarfile
 import os
 import json
@@ -43,7 +44,12 @@ class ApplicationCreator(object):
         self._name_regex = re.compile('')
         self._hdfs_client = HDFS(environment['webhdfs_host'],
                                  environment['webhdfs_port'],
-                                 'hdfs')
+                                 environment['webhdfs_user'])
+
+    def assert_application_properties(self, override_properties, default_properties):
+        for component_type, component_properties in default_properties.items():
+            creator = self._load_creator(component_type)
+            creator.assert_application_properties(override_properties.get(component_type, {}), component_properties)
 
     def create_application(self, package_data_path, package_metadata, application_name, property_overrides):
 
@@ -52,16 +58,23 @@ class ApplicationCreator(object):
         if not re.match('^[a-zA-Z0-9_-]+$', application_name):
             raise FailedCreation('Application name %s may only contain a-z A-Z 0-9 - _' % application_name)
 
+        user_name = property_overrides['user']
+        try:
+            pwd.getpwnam(user_name)
+        except KeyError:
+            raise FailedCreation('User %s does not exist. Verify that this user account exists on the machine running the deployment manager.' % user_name)
+
         stage_path = self._stage_package(package_data_path)
 
         # create each class of components in the package, aggregating any
         # component specific return data for destruction
         create_metadata = {}
         try:
-            for component_type, components in package_metadata['component_types'].iteritems():
+            for component_type, components in package_metadata['component_types'].items():
                 creator = self._load_creator(component_type)
                 result = creator.create_components(stage_path,
                                                    application_name,
+                                                   user_name,
                                                    components,
                                                    property_overrides.get(component_type))
                 create_metadata[component_type] = result
@@ -75,20 +88,25 @@ class ApplicationCreator(object):
 
         logging.debug("destroy_application: %s %s", application_name, application_create_data)
 
-        for component_type, component_create_data in application_create_data.iteritems():
+        app_hdfs_root = None
+        for component_type, component_create_data in application_create_data.items():
             creator = self._load_creator(component_type)
             creator.destroy_components(application_name, component_create_data)
+            if component_create_data and 'application_hdfs_root' in component_create_data[0]:
+                app_hdfs_root = component_create_data[0]['application_hdfs_root']
 
         local_path = '/opt/%s/%s/' % (self._service, application_name)
         if os.path.isdir(local_path):
             os.rmdir(local_path)
-        self._hdfs_client.remove('/user/%s' % application_name, recursive=False)
+
+        if app_hdfs_root is not None:
+            self._hdfs_client.remove(app_hdfs_root, recursive=False)
 
     def start_application(self, application_name, application_create_data):
 
         logging.debug("start_application: %s %s", application_name, application_create_data)
 
-        for component_type, component_create_data in application_create_data.iteritems():
+        for component_type, component_create_data in application_create_data.items():
             creator = self._load_creator(component_type)
             creator.start_components(application_name, component_create_data)
 
@@ -96,7 +114,7 @@ class ApplicationCreator(object):
 
         logging.debug("stop_application: %s %s", application_name, application_create_data)
 
-        for component_type, component_create_data in application_create_data.iteritems():
+        for component_type, component_create_data in application_create_data.items():
             creator = self._load_creator(component_type)
             creator.stop_components(application_name, component_create_data)
 
@@ -106,13 +124,13 @@ class ApplicationCreator(object):
 
         result = {}
         self._validate_name(package_name, package_metadata)
-        for component_type, component_metadata in package_metadata['component_types'].iteritems():
+        for component_type, component_metadata in package_metadata['component_types'].items():
             creator = self._load_creator(component_type)
             validation_errors = creator.validate_components(component_metadata)
-            if len(validation_errors) > 0:
+            if validation_errors:
                 result[component_type] = validation_errors
 
-        if len(result) > 0:
+        if result:
             raise FailedValidation(result)
 
     def _validate_name(self, package_name, package_metadata):
@@ -134,7 +152,7 @@ class ApplicationCreator(object):
 
         details = {}
         details['yarn_applications'] = {}
-        for component_type, component_create_data in application_create_data.iteritems():
+        for component_type, component_create_data in application_create_data.items():
             creator = self._load_creator(component_type)
             type_details = creator.get_component_runtime_details(component_create_data)
             details['yarn_applications'].update(type_details['yarn_applications'])
@@ -142,7 +160,7 @@ class ApplicationCreator(object):
 
     def _load_creator(self, component_type):
 
-        print "_load_creator", component_type
+        logging.debug("_load_creator %s", component_type)
 
         creator = self._component_creators.get(component_type)
 

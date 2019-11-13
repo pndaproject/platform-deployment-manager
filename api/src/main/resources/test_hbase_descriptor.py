@@ -29,9 +29,7 @@ import hbase_descriptor
 
 class TestHbaseDescriptor(unittest.TestCase):
     @patch('starbase.Connection')
-    @patch('pyhs2.connect')
-    def test_normal_use(self, pyhs_mock, hbase_mock):
-        pyhs_mock.return_value = Mock()
+    def test_normal_use(self, hbase_mock):
 
         my_text = '[{"table":"a_table", "col_family":"a_cf", "hive_schema":[]}]'
         mocked_open_function = mock_open(read_data=my_text)
@@ -49,10 +47,11 @@ class TestHbaseDescriptor(unittest.TestCase):
         hbase_mock.return_value.table.return_value.create.assert_called_once_with('a_cf')
 
     @patch('starbase.Connection')
-    @patch('pyhs2.connect')
-    def test_with_impala_schema(self, pyhs_mock, hbase_mock):
-        my_text = '[{"table":"a_table", "col_family":"a_cf", "hive_schema":["some ddl","more ddl"]}]'
+    @patch('subprocess.check_output')
+    def test_with_impala_schema(self, subprocess_mock, hbase_mock):
+        my_text = '[{"table":"a_table", "col_family":"a_cf", "hive_schema":["some ddl"]}]'
         mocked_open_function = mock_open(read_data=my_text)
+        subprocess_mock.return_value = 'something'
 
         with patch("__builtin__.open", mocked_open_function):
             environment = {
@@ -65,5 +64,4 @@ class TestHbaseDescriptor(unittest.TestCase):
         hbase_mock.assert_called_once_with(host='1.2.3.4', port=2231)
         hbase_mock.return_value.table.assert_called_once_with('a_table')
         hbase_mock.return_value.table.return_value.create.assert_called_once_with('a_cf')
-        pyhs_mock.return_value.cursor.return_value.execute.assert_any_call('some ddl')
-        pyhs_mock.return_value.cursor.return_value.execute.assert_any_call('more ddl')
+        subprocess_mock.assert_called_once_with(["beeline", "-u", "jdbc:hive2://5.6.7.8:9876/;transportMode=http;httpPath=cliservice", "-e", "some ddl"])
