@@ -1,7 +1,7 @@
 import json
 import logging
 import happybase
-from thriftpy.transport import TTransportException
+from thriftpy2.transport import TTransportException
 from Hbase_thrift import AlreadyExists
 
 #pylint: disable=E0602
