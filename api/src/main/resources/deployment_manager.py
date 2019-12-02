@@ -87,8 +87,9 @@ class DeploymentManager(object):
         if user:
             try:
                 groups = [g.gr_name for g in grp.getgrall() if user in g.gr_mem]
-                gid = pwd.getpwnam(user).pw_gid
-                groups.append(grp.getgrgid(gid).gr_name)
+                if not pwd.getpwnam(user).pw_gid:
+                    gid = pwd.getpwnam(user).pw_gid
+                    groups.append(grp.getgrgid(gid).gr_name)
             except:
                 raise Forbidden('Failed to find details for user "%s"' % user)
         return groups

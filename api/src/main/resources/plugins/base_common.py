@@ -43,7 +43,7 @@ class Common(Creator):
         self._control_component(create_data['stop_cmds'])
 
     def _control_component(self, cmds):
-        key_file = self._environment['cluster_private_key']
+        '''key_file = self._environment['cluster_private_key']
         root_user = self._environment['cluster_root_user']
-        target_host = 'localhost'
-        deployer_utils.exec_ssh(target_host, root_user, key_file, cmds)
+        target_host = 'localhost'''
+        deployer_utils.exec_cmds(cmds)

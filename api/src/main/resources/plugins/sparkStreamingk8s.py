@@ -30,7 +30,7 @@ import deployer_utils
 from plugins.base_common import Common
 
 
-class SparkStreamingCreator(Common):
+class SparkStreamingk8sCreator(Common):
 
     def validate_component(self, component):
         errors = []
@@ -47,17 +47,18 @@ class SparkStreamingCreator(Common):
 
     def get_component_type(self):
         return 'sparkStreaming'
-
-    def create_component(self, staged_component_path, application_name, user_name, component, properties):
-        logging.debug("create_component: %s %s %s %s %s", application_name, user_name, json.dumps(component), properties, staged_component_path)
-        remote_component_tmp_path = '%s/%s/%s' % ('/tmp/%s' % self._namespace, application_name, component['component_name'])
+    
+    def create_component_k8s(self, application_name, user_name, component, properties):
+        logging.debug("create_component_k8s: %s %s %s %s" , application_name, user_name, json.dumps(component), properties)
+        remote_component_tmp_path = '%s/%s/%s' % (
+            '/tmp/%s' % self._namespace, application_name, component['component_name'])
         remote_component_install_path = '%s/%s/%s' % (
             '/opt/%s' % self._namespace, application_name, component['component_name'])
         service_name = '%s-%s-%s' % (self._namespace, application_name, component['component_name'])
 
-        # key_file = self._environment['cluster_private_key']
-        # root_user = self._environment['cluster_root_user']
-        # target_host = 'localhost'
+        #key_file = self._environment['cluster_private_key']
+        root_user = self._environment['cluster_root_user']
+        target_host = 'localhost'
 
         if 'component_spark_version' not in properties:
             properties['component_spark_version'] = '1'
@@ -85,8 +86,8 @@ class SparkStreamingCreator(Common):
                 raise Exception('properties.json must contain "main_jar or main_py" for %s sparkStreaming %s' % (application_name, component['component_name']))
 
             this_dir = os.path.dirname(os.path.realpath(__file__))
-            # copy(os.path.join(this_dir, 'yarn-kill.py'), staged_component_path)
-            service_script = 'systemd.service.tpl' if java_app else 'systemd.service.py.tpl'
+            copy(os.path.join(this_dir, 'k8s_kill.py'), staged_component_path)
+            service_script = 'systemd.service.k8s.tpl' if java_app else 'systemd.service.k8s.py.tpl'
             service_script_install_path = '/usr/lib/systemd/system/%s.service' % service_name
             if 'component_respawn_type' not in properties:
                 properties['component_respawn_type'] = 'always'
@@ -97,50 +98,30 @@ class SparkStreamingCreator(Common):
         self._fill_properties(os.path.join(staged_component_path, service_script), properties)
         self._fill_properties(os.path.join(staged_component_path, 'log4j.properties'), properties)
         self._fill_properties(os.path.join(staged_component_path, 'application.properties'), properties)
-        # self._fill_properties(os.path.join(staged_component_path, 'k8s-kill.py'), properties)
+        self._fill_properties(os.path.join(staged_component_path, 'k8s_kill.py'), properties)
 
         mkdircommands = []
         mkdircommands.append('mkdir -p %s' % remote_component_tmp_path)
-        mkdircommands.append('mkdir -p %s' % remote_component_install_path)
-        logging.debug("mkdircommands are %s", mkdircommands)
-        deployer_utils.exec_cmds(mkdircommands)
-        logging.debug("Staged Component Path is: %s",staged_component_path)
+        mkdircommands.append('sudo mkdir -p %s' % remote_component_install_path)
+        deployer_utils.exec_ssh_k8s(target_host, root_user, mkdircommands)
 
-        os.system("cp %s %s" % (staged_component_path + '/*', remote_component_tmp_path))
+        os.system("scp -i -o StrictHostKeyChecking=no %s %s@%s:%s"
+                  % (staged_component_path + '/*', root_user, target_host, remote_component_tmp_path))
 
-        # for node in self._environment['yarn_node_managers'].split(','):
-        #     deployer_utils.exec_cmds(['mkdir -p %s' % remote_component_tmp_path])
-        #os.system("cp %s %s" % (staged_component_path + '/log4j.properties', remote_component_tmp_path + '/log4j.properties'))
-        #deployer_utils.exec_cmds(['mv %s %s' % (remote_component_tmp_path + '/log4j.properties', remote_component_install_path + '/log4j.properties')])
+        for node in self._environment['k8s_node_managers'].split(','):
+            deployer_utils.exec_ssh_k8s(node, root_user, ['mkdir -p %s' % remote_component_tmp_path])
+            os.system("scp -i -o StrictHostKeyChecking=no %s %s@%s:%s"
+                      % (staged_component_path + '/log4j.properties', root_user, node, remote_component_tmp_path + '/log4j.properties'))
+            deployer_utils.exec_ssh_k8s(node, root_user,
+                                    ['sudo mkdir -p %s' % remote_component_install_path,
+                                     'sudo mv %s %s' % (remote_component_tmp_path + '/log4j.properties', remote_component_install_path + '/log4j.properties')])
 
         commands = []
-        os.system('cp %s/%s %s' % (remote_component_tmp_path, service_script, service_script_install_path))
-        os.system('cp %s %s' % (remote_component_tmp_path+'/*', remote_component_install_path))
-        os.system("cp %s %s" %(remote_component_tmp_path + '/*.yaml', '/data/stage/'))
-
-        #commands.append('cp %s/%s %s' % (remote_component_tmp_path, service_script, service_script_install_path))
-        #commands.append('cp %s/* %s' % (remote_component_tmp_path, remote_component_install_path))
-        logging.debug("PATHS ******* = : %s \n  %s \n %s"%(remote_component_tmp_path, service_script_install_path, remote_component_install_path))
+        commands.append('sudo cp %s/%s %s' % (remote_component_tmp_path, service_script, service_script_install_path))
+        commands.append('sudo cp %s/* %s' % (remote_component_tmp_path, remote_component_install_path))
+        commands.append('sudo chmod a+x %s/k8s_kill.py' % (remote_component_install_path))
         if 'component_main_jar' in properties:
-            commands.append('cd %s && jar uf %s application.properties' % (remote_component_install_path, properties['component_main_jar']))
-        #commands.append('rm -rf %s' % (remote_component_tmp_path))
-        logging.debug("commands are : %s", commands)
-        deployer_utils.exec_cmds(commands)
-
-        undo_commands = []
-        undo_commands.append('service %s stop\n' % service_name)
-        undo_commands.append('rm -rf %s\n' % remote_component_install_path)
-        undo_commands.append('rm  %s\n' % service_script_install_path)
-        logging.debug("uninstall commands: %s", undo_commands)
-
-        start_commands = []
-        start_commands.append('systemctl daemon-reload\n')
-        start_commands.append('service %s start\n' % service_name)
-        logging.debug("start commands: %s", start_commands)
-
-        stop_commands = []
-        stop_commands.append('service %s stop\n' % service_name)
-        logging.debug("stop commands: %s", stop_commands)
-
-        return {'ssh': undo_commands, 'start_cmds': start_commands, 'stop_cmds': stop_commands}
+            commands.append('cd %s && sudo jar uf %s application.properties' % (remote_component_install_path, properties['component_main_jar']))
+        commands.append('sudo rm -rf %s' % (remote_component_tmp_path))
+        deployer_utils.exec_ssh(target_host, root_user, commands)
 

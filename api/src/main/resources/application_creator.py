@@ -69,18 +69,18 @@ class ApplicationCreator(object):
         # create each class of components in the package, aggregating any
         # component specific return data for destruction
         create_metadata = {}
-        try:
-            for component_type, components in package_metadata['component_types'].items():
-                creator = self._load_creator(component_type)
-                result = creator.create_components(stage_path,
-                                                   application_name,
-                                                   user_name,
-                                                   components,
-                                                   property_overrides.get(component_type))
-                create_metadata[component_type] = result
-        finally:
+        #try:
+        for component_type, components in package_metadata['component_types'].items():
+            creator = self._load_creator(component_type)
+            result = creator.create_components(stage_path,
+                                               application_name,
+                                               user_name,
+                                               components,
+                                               property_overrides.get(component_type))
+            create_metadata[component_type] = result
+        #finally:
             # clean up staged package data
-            shutil.rmtree(stage_path)
+            #shutil.rmtree(stage_path)
 
         return create_metadata
 
@@ -173,6 +173,7 @@ class ApplicationCreator(object):
                 self._component_creators[component_type] = getattr(
                     module, cls)(self._config, self._environment, self._service)
                 creator = self._component_creators[component_type]
+                logging.debug("_load_creator creator is : %s", creator)
             except ImportError as exception:
                 logging.error(
                     'Unable to load Creator for component type "%s" [%s]',
@@ -184,6 +185,7 @@ class ApplicationCreator(object):
     def _stage_package(self, package_data_path):
 
         logging.debug("_stage_package")
+        logging.debug("package_data_path : %s",package_data_path)
 
         if not os.path.isdir(self._config['stage_root']):
             os.mkdir(self._config['stage_root'])
@@ -191,4 +193,5 @@ class ApplicationCreator(object):
         tar = tarfile.open(package_data_path)
         stage_path = "%s/%s" % (self._config['stage_root'], uuid.uuid4())
         tar.extractall(path=stage_path)
+        logging.debug("stage_path : %s",stage_path)
         return stage_path
