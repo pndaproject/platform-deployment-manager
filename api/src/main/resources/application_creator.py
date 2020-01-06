@@ -25,8 +25,6 @@ import tarfile
 import os
 import json
 import re
-
-import shutil
 import logging
 import uuid
 from importlib import import_module
@@ -69,7 +67,7 @@ class ApplicationCreator(object):
         # create each class of components in the package, aggregating any
         # component specific return data for destruction
         create_metadata = {}
-        #try:
+        # try:
         for component_type, components in package_metadata['component_types'].items():
             creator = self._load_creator(component_type)
             result = creator.create_components(stage_path,
@@ -78,9 +76,9 @@ class ApplicationCreator(object):
                                                components,
                                                property_overrides.get(component_type))
             create_metadata[component_type] = result
-        #finally:
+        # finally:
             # clean up staged package data
-            #shutil.rmtree(stage_path)
+            # shutil.rmtree(stage_path)
 
         return create_metadata
 
@@ -159,7 +157,6 @@ class ApplicationCreator(object):
         return details
 
     def _load_creator(self, component_type):
-
         logging.debug("_load_creator %s", component_type)
 
         creator = self._component_creators.get(component_type)
@@ -185,7 +182,7 @@ class ApplicationCreator(object):
     def _stage_package(self, package_data_path):
 
         logging.debug("_stage_package")
-        logging.debug("package_data_path : %s",package_data_path)
+        logging.debug("package_data_path : %s", package_data_path)
 
         if not os.path.isdir(self._config['stage_root']):
             os.mkdir(self._config['stage_root'])
@@ -193,5 +190,5 @@ class ApplicationCreator(object):
         tar = tarfile.open(package_data_path)
         stage_path = "%s/%s" % (self._config['stage_root'], uuid.uuid4())
         tar.extractall(path=stage_path)
-        logging.debug("stage_path : %s",stage_path)
+        logging.debug("stage_path : %s", stage_path)
         return stage_path

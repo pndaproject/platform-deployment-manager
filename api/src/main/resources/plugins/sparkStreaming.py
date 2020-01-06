@@ -26,9 +26,9 @@ import json
 import os
 import logging
 from shutil import copy
+import yaml
 import deployer_utils
 from plugins.base_common import Common
-
 
 class SparkStreamingCreator(Common):
 
@@ -48,16 +48,35 @@ class SparkStreamingCreator(Common):
     def get_component_type(self):
         return 'sparkStreaming'
 
+    def create_spark_yml(self, jar_path, properties):
+        main_class = properties['component_main_class']
+        main_jar = 'local://%s/%s' % (jar_path, properties['component_main_jar'])
+        application_name = properties['component_application_name']
+        driver_cores = properties['component_driver_cores']
+        driver_memory = properties['component_driver_memory']
+        executor_cores = properties['component_executor_cores']
+        executor_instances = properties['component_executor_instances']
+        executor_memory = properties['component_executor_memory']
+        json_file = '%s/%s.json' % (jar_path,application_name)
+        with open('sparkapp_tpl.yaml', 'r') as yfile, open(json_file, 'w') as json_out:
+            for rpl_data in yaml.safe_load_all(yfile):
+                rpl_data['metadata']['name'] = application_name
+                rpl_data['spec']['mainClass'] = main_class
+                rpl_data['spec']['mainApplicationFile'] = main_jar
+                rpl_data['spec']['driver']['cores'] = int(driver_cores)
+                rpl_data['spec']['driver']['memory'] = driver_memory
+                rpl_data['spec']['executor']['cores'] = int(executor_cores)
+                rpl_data['spec']['executor']['instances'] = int(executor_instances)
+                rpl_data['spec']['executor']['memory'] = executor_memory
+                json.dump(rpl_data, json_out, ensure_ascii=False, indent="\t")
+        return json_file
+
     def create_component(self, staged_component_path, application_name, user_name, component, properties):
         logging.debug("create_component: %s %s %s %s %s", application_name, user_name, json.dumps(component), properties, staged_component_path)
         remote_component_tmp_path = '%s/%s/%s' % ('/tmp/%s' % self._namespace, application_name, component['component_name'])
         remote_component_install_path = '%s/%s/%s' % (
             '/opt/%s' % self._namespace, application_name, component['component_name'])
         service_name = '%s-%s-%s' % (self._namespace, application_name, component['component_name'])
-
-        # key_file = self._environment['cluster_private_key']
-        # root_user = self._environment['cluster_root_user']
-        # target_host = 'localhost'
 
         if 'component_spark_version' not in properties:
             properties['component_spark_version'] = '1'
@@ -85,7 +104,6 @@ class SparkStreamingCreator(Common):
                 raise Exception('properties.json must contain "main_jar or main_py" for %s sparkStreaming %s' % (application_name, component['component_name']))
 
             this_dir = os.path.dirname(os.path.realpath(__file__))
-            # copy(os.path.join(this_dir, 'yarn-kill.py'), staged_component_path)
             service_script = 'systemd.service.tpl' if java_app else 'systemd.service.py.tpl'
             service_script_install_path = '/usr/lib/systemd/system/%s.service' % service_name
             if 'component_respawn_type' not in properties:
@@ -97,50 +115,33 @@ class SparkStreamingCreator(Common):
         self._fill_properties(os.path.join(staged_component_path, service_script), properties)
         self._fill_properties(os.path.join(staged_component_path, 'log4j.properties'), properties)
         self._fill_properties(os.path.join(staged_component_path, 'application.properties'), properties)
-        # self._fill_properties(os.path.join(staged_component_path, 'k8s-kill.py'), properties)
-
         mkdircommands = []
         mkdircommands.append('mkdir -p %s' % remote_component_tmp_path)
         mkdircommands.append('mkdir -p %s' % remote_component_install_path)
         logging.debug("mkdircommands are %s", mkdircommands)
         deployer_utils.exec_cmds(mkdircommands)
-        logging.debug("Staged Component Path is: %s",staged_component_path)
+        logging.debug("Staged Component Path is: %s", staged_component_path)
 
         os.system("cp %s %s" % (staged_component_path + '/*', remote_component_tmp_path))
 
-        # for node in self._environment['yarn_node_managers'].split(','):
-        #     deployer_utils.exec_cmds(['mkdir -p %s' % remote_component_tmp_path])
-        #os.system("cp %s %s" % (staged_component_path + '/log4j.properties', remote_component_tmp_path + '/log4j.properties'))
-        #deployer_utils.exec_cmds(['mv %s %s' % (remote_component_tmp_path + '/log4j.properties', remote_component_install_path + '/log4j.properties')])
-
         commands = []
         os.system('cp %s/%s %s' % (remote_component_tmp_path, service_script, service_script_install_path))
-        os.system('cp %s %s' % (remote_component_tmp_path+'/*', remote_component_install_path))
-        os.system("cp %s %s" %(remote_component_tmp_path + '/*.yaml', '/data/stage/'))
+        os.system('cp %s %s' % (remote_component_tmp_path + '/*', remote_component_install_path))
 
-        #commands.append('cp %s/%s %s' % (remote_component_tmp_path, service_script, service_script_install_path))
-        #commands.append('cp %s/* %s' % (remote_component_tmp_path, remote_component_install_path))
-        logging.debug("PATHS ******* = : %s \n  %s \n %s"%(remote_component_tmp_path, service_script_install_path, remote_component_install_path))
         if 'component_main_jar' in properties:
             commands.append('cd %s && jar uf %s application.properties' % (remote_component_install_path, properties['component_main_jar']))
-        #commands.append('rm -rf %s' % (remote_component_tmp_path))
         logging.debug("commands are : %s", commands)
         deployer_utils.exec_cmds(commands)
+        app_path = staged_component_path.split('/')[:5]
+        jar_path = '/'.join(app_path)
+
+        self.create_spark_yml(jar_path, properties)
+        app_removal_path = staged_component_path.split('/')[:3]
 
         undo_commands = []
-        undo_commands.append('service %s stop\n' % service_name)
+        undo_commands.append('rm -rf %s\n' % '/'.join(app_removal_path))
+        undo_commands.append('rm -rf %s\n' % remote_component_tmp_path)
         undo_commands.append('rm -rf %s\n' % remote_component_install_path)
         undo_commands.append('rm  %s\n' % service_script_install_path)
         logging.debug("uninstall commands: %s", undo_commands)
-
-        start_commands = []
-        start_commands.append('systemctl daemon-reload\n')
-        start_commands.append('service %s start\n' % service_name)
-        logging.debug("start commands: %s", start_commands)
-
-        stop_commands = []
-        stop_commands.append('service %s stop\n' % service_name)
-        logging.debug("stop commands: %s", stop_commands)
-
-        return {'ssh': undo_commands, 'start_cmds': start_commands, 'stop_cmds': stop_commands}
-
+        return {'ssh': undo_commands, 'crdjson': jar_path}

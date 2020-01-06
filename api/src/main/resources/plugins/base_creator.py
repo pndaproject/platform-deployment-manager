@@ -262,8 +262,7 @@ class Creator(object):
             result['application_hdfs_root'] = merged_props['application_hdfs_root']
             result['component_job_name'] = merged_props['component_job_name']
             result['descriptors'] = descriptor_result
-            results.append(result)
-        os.system("cp %s/%s %s" %(stage_path,components['examples']['component_path'].split('/')[0] + '/*.jar', stage_path + '/..'))
+            results.append(result)        
         return results
 
     def destroy_components(self, application_name, create_data):
