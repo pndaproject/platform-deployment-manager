@@ -67,14 +67,6 @@ RUN yum install -y \
     ln -s /opt/spark/kubernetes/tests /opt/spark/tests
 
 
-RUN wget https://raw.githubusercontent.com/gdraheim/docker-systemctl-replacement/master/files/docker/systemctl.py -O /usr/bin/systemctl
-RUN chmod 777 /usr/bin/systemctl
-
-RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl && \
-    chmod +x ./kubectl && \
-    mv ./kubectl /usr/local/bin/kubectl
-
-
 ENV SPARK_HOME /opt/spark
 
 RUN useradd pnda
