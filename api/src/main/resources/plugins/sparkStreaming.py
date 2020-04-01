@@ -129,7 +129,7 @@ class SparkStreamingCreator(Common):
         os.system('cp %s %s' % (remote_component_tmp_path + '/*', remote_component_install_path))
 
         if 'component_main_jar' in properties:
-            commands.append('cd %s && jar uf %s application.properties' % (remote_component_install_path, properties['component_main_jar']))
+            commands.append('cp %s && jar uf %s application.properties' % (remote_component_install_path, properties['component_main_jar']))
         logging.debug("commands are : %s", commands)
         deployer_utils.exec_cmds(commands)
         app_path = staged_component_path.split('/')[:5]
@@ -137,6 +137,7 @@ class SparkStreamingCreator(Common):
 
         self.create_spark_yml(jar_path, properties)
         app_removal_path = staged_component_path.split('/')[:3]
+
 
         undo_commands = []
         #undo_commands.append('rm -rf %s\n' % '/'.join(app_removal_path))
