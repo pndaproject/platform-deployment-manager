@@ -80,8 +80,8 @@ class ApplicationCreator(object):
                                                    property_overrides.get(component_type))
                 create_metadata[component_type] = result
         finally:
-           # clean up staged package data
-           shutil.rmtree(stage_path)
+            # clean up staged package data
+            shutil.rmtree(stage_path)
 
         return create_metadata
 
