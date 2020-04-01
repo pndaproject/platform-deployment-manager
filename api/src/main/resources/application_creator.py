@@ -81,8 +81,7 @@ class ApplicationCreator(object):
                 create_metadata[component_type] = result
         finally:
         # clean up staged package data
-        # shutil.rmtree(stage_path)
-            pass
+         shutil.rmtree(stage_path)
 
         return create_metadata
 
