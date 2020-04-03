@@ -33,6 +33,7 @@ either express or implied.
 """
 
 import logging
+import os
 import json
 import string
 import collections
@@ -191,7 +192,6 @@ class Creator(object):
             # for binary files do not substitute
             pass
 
-
     def _auto_fill_app_properties(self, staged_component_path, props):
         app_properties_file_path = '%s/application.properties' % staged_component_path
         with open(app_properties_file_path, "a") as app_properties_file:
@@ -248,14 +248,17 @@ class Creator(object):
     def create_components(self, stage_path, application_name, user_name, components,
                           components_overrides):
         results = []
+        logging.debug("Components is :  %s", components)
         for component_name, component in components.items():
             staged_component_path = '%s/%s' % (stage_path, component['component_path'])
             overrides = components_overrides.get(component_name) if components_overrides is not None else {}
             overrides = {} if overrides is None else overrides
             merged_props = self._instantiate_properties(application_name, user_name, component, overrides)
             descriptor_result = self._create_optional_descriptors(staged_component_path, component, merged_props)
+            logging.debug("Logging ***************** is :  %s %s %s", overrides, merged_props, descriptor_result)
             self._auto_fill_app_properties(staged_component_path, merged_props)
             result = self.create_component(staged_component_path, application_name, user_name, component, merged_props)
+            logging.debug("Result is :  %s", result)
             result['component_name'] = component_name
             result['application_hdfs_root'] = merged_props['application_hdfs_root']
             result['component_job_name'] = merged_props['component_job_name']

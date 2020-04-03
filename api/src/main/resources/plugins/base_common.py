@@ -21,7 +21,6 @@ either express or implied.
 """
 
 # pylint: disable=C0103
-
 import json
 import logging
 import deployer_utils
@@ -29,7 +28,6 @@ from plugins.base_creator import Creator
 
 
 class Common(Creator):
-
     def destroy_component(self, application_name, create_data):
         logging.debug("destroy_component: %s %s", application_name, json.dumps(create_data))
         self._control_component(create_data['ssh'])
@@ -40,10 +38,11 @@ class Common(Creator):
 
     def stop_component(self, application_name, create_data):
         logging.debug("stop_component: %s %s", application_name, json.dumps(create_data))
-        self._control_component(create_data['stop_cmds'])
+        # self._control_component(create_data['stop_cmds'])
 
     def _control_component(self, cmds):
-        key_file = self._environment['cluster_private_key']
+        '''key_file = self._environment['cluster_private_key']
         root_user = self._environment['cluster_root_user']
-        target_host = 'localhost'
-        deployer_utils.exec_ssh(target_host, root_user, key_file, cmds)
+        target_host = 'localhost'''
+        deployer_utils.exec_cmds(cmds)
+

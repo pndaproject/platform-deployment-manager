@@ -21,6 +21,7 @@ either express or implied.
 """
 
 import os
+import subprocess
 import tarfile
 from io import BytesIO
 import logging
@@ -261,6 +262,7 @@ class HDFS(object):
     def stream_file_to_disk(self, remote_file_path, local_file_path):
         chunk_size = 10*1024*1024
         offset = 0
+        logging.debug("Stream file to disk : %s,%s"%(remote_file_path, local_file_path))
         with open(local_file_path, 'wb') as dest_file:
             data = self._hdfs.read_file(canonicalize(remote_file_path), offset=offset, length=chunk_size)
             while True:
@@ -294,7 +296,6 @@ def exec_ssh(host, user, key, ssh_commands):
     shell = spur.SshShell(
         hostname=host,
         username=user,
-        private_key_file=key,
         missing_host_key=spur.ssh.MissingHostKey.accept)
     with shell:
         for ssh_command in ssh_commands:
@@ -306,6 +307,13 @@ def exec_ssh(host, user, key, ssh_commands):
                     ssh_command +
                     " - error: " +
                     traceback.format_exc(exception))
+
+def exec_cmds(commands):
+    for cmd in commands:
+        try:
+            subprocess.check_output(cmd.split())
+        except subprocess.CalledProcessError as e:
+            logging.error(e.output)
 
 
 def dict_to_props(dict_props):
@@ -325,3 +333,4 @@ def dict_to_xml(dict_props):
                       '</property>'
     xml_string += '</configuration>'
     return xml_header + xml_string
+

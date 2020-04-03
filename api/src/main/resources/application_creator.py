@@ -62,7 +62,8 @@ class ApplicationCreator(object):
         try:
             pwd.getpwnam(user_name)
         except KeyError:
-            raise FailedCreation('User %s does not exist. Verify that this user account exists on the machine running the deployment manager.' % user_name)
+            raise FailedCreation(
+                'User %s does not exist. Verify that this user account exists on the machine running the deployment manager.' % user_name)
 
         stage_path = self._stage_package(package_data_path)
 
@@ -79,8 +80,9 @@ class ApplicationCreator(object):
                                                    property_overrides.get(component_type))
                 create_metadata[component_type] = result
         finally:
-            # clean up staged package data
-            shutil.rmtree(stage_path)
+            #clean up staged package data
+            #shutil.rmtree(stage_path)
+            pass
 
         return create_metadata
 
@@ -137,14 +139,16 @@ class ApplicationCreator(object):
 
         parts = package_name.split('-')
         if len(parts) < 2:
-            raise FailedValidation("package name must be of the form name-version e.g. name-version.1.2.3 but found %s" % package_name)
+            raise FailedValidation(
+                "package name must be of the form name-version e.g. name-version.1.2.3 but found %s" % package_name)
 
         version_parts = parts[-1].split('.')
         if len(version_parts) < 3:
             raise FailedValidation("version must be a three part major.minor.patch e.g. 1.2.3 but found %s" % parts[-1])
 
         if package_name != package_metadata['package_name']:
-            raise FailedValidation("package name must match name of enclosed folder but found %s and %s" % (package_name, package_metadata['package_name']))
+            raise FailedValidation("package name must match name of enclosed folder but found %s and %s" % (
+            package_name, package_metadata['package_name']))
 
     def get_application_runtime_details(self, application_name, application_create_data):
 
@@ -173,6 +177,7 @@ class ApplicationCreator(object):
                 self._component_creators[component_type] = getattr(
                     module, cls)(self._config, self._environment, self._service)
                 creator = self._component_creators[component_type]
+
             except ImportError as exception:
                 logging.error(
                     'Unable to load Creator for component type "%s" [%s]',
@@ -191,4 +196,5 @@ class ApplicationCreator(object):
         tar = tarfile.open(package_data_path)
         stage_path = "%s/%s" % (self._config['stage_root'], uuid.uuid4())
         tar.extractall(path=stage_path)
+
         return stage_path

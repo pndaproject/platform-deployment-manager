@@ -73,6 +73,7 @@ class JupyterCreator(Creator):
             os.system('git init {}'.format(repo_path))
             shutil.copyfile(repo_path+'/.git/hooks/post-update.sample', repo_path+'/.git/hooks/post-update')
             os.chmod(repo_path+'/.git/hooks/post-update',0o755)
+														  
             this_dir = os.path.dirname(os.path.realpath(__file__))
             shutil.copyfile(this_dir+'/jupyter_README.ipynb',repo_path+'/README.ipynb')
             os.system('cd {0} && git add README.ipynb && git commit -m "Initial commit"'.format(repo_path))
@@ -86,6 +87,7 @@ class JupyterCreator(Creator):
             if file_name != 'properties.json':
                 if os.path.isfile('{}/{}'.format(staged_component_path,file_name)):
                     self._fill_properties('%s/%s' % (staged_component_path, file_name), properties)
+
                     logging.debug('Copying {} to {}'.format(file_name, notebook_install_path))
                     shutil.copyfile('{}/{}'.format(staged_component_path, file_name),
                           '{}/{}'.format(notebook_install_path, file_name ))
@@ -105,3 +107,4 @@ class JupyterCreator(Creator):
 
         logging.debug("uninstall commands: %s", delete_commands)
         return {'delete_commands': delete_commands}
+
