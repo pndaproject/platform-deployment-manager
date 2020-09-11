@@ -120,6 +120,24 @@ class ApplicationCreator(object):
             creator = self._load_creator(component_type)
             creator.stop_components(application_name, component_create_data)
 
+    def get_application_log(self, application_name, application_create_data):
+
+        logging.debug("get_application_log: %s %s", application_name, application_create_data)
+
+        for component_type, component_create_data in application_create_data.items():
+            creator = self._load_creator(component_type)
+            log_data = creator.get_pod_logs(application_name)
+        return log_data
+
+    def get_application_state(self, application_name, application_create_data):
+
+        logging.debug("get_application_state: %s %s", application_name, application_create_data)
+
+        for component_type, component_create_data in application_create_data.items():
+            creator = self._load_creator(component_type)
+            state_data = creator.get_pod_state(application_name)
+        return state_data
+
     def validate_package(self, package_name, package_metadata):
 
         logging.debug("validate_package: %s", json.dumps(package_metadata))

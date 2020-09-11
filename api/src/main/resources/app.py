@@ -253,9 +253,13 @@ class ApplicationDetailHandler(BaseHandler):
                 self.send_result(dm.get_application_detail(name, self.get_argument("user.name", default='')))
             elif action == 'summary':
                 self.send_result(dm.get_application_summary(name, self.get_argument("user.name", default='')))
+            elif action == 'log':
+                self.send_result(dm.get_application_log(name, self.get_argument("user.name", default='')))
+            elif action == 'state':
+                self.send_result(dm.get_application_state(name, self.get_argument("user.name", default='')))
             else:
-                self.send_client_error("%s is not a valid query (status|detail|summary)" % action)
-
+                self.send_client_error("%s is not a valid query (status|detail|summary|log|state)" % action)
+                
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
 
 class ApplicationHandler(BaseHandler):

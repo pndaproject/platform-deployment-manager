@@ -189,7 +189,7 @@ class SparkStreamingCreator(Common):
 
 
         undo_commands = []
-        #undo_commands.append('rm -rf %s\n' % '/'.join(app_removal_path))
+        undo_commands.append('rm -rf %s\n' % '/'.join(app_removal_path))
         undo_commands.append('rm -rf %s\n' % remote_component_tmp_path)
         undo_commands.append('rm -rf %s\n' % remote_component_install_path)
         undo_commands.append('rm  %s\n' % service_script_install_path)
@@ -206,6 +206,31 @@ class SparkStreamingCreator(Common):
         #._control_component(create_data['start_cmds'])
         json_path = create_data['crdjson']
         self.create_custom_resource_object("%s/%s.json" % (json_path,application_name))
+
+    def get_pod_logs(self, pod_name):
+        namespace_id = 'pnda'
+        config.load_incluster_config()
+        try:
+            configuration = client.Configuration()
+            api_client = client.ApiClient(configuration)
+            api_instance = client.CoreV1Api(api_client)
+            api_response = api_instance.read_namespaced_pod_log(name=str(pod_name) + "-driver", namespace=namespace_id)
+            return api_response
+
+        except ApiException as e:
+            logging.debug("Exception when calling CoreV1Api->read_namespaced_pod_log: %s\n" % e)
+
+    def get_pod_state(self, pod_name):
+        namespace_id = 'pnda'
+        config.load_incluster_config()
+        try:
+            configuration = client.Configuration()
+            api_client = client.ApiClient(configuration)
+            api_instance = client.CoreV1Api(api_client)
+            api_response_state = api_instance.read_namespaced_pod_status(name=str(pod_name) + "-driver", namespace=namespace_id)
+            return api_response_state.status.phase
+        except ApiException as e:
+            logging.debug("Exception when calling CoreV1Api->read_namespaced_pod_status: %s\n" % e)
 
     def _control_component(self, cmds):
         deployer_utils.exec_cmds(cmds)
