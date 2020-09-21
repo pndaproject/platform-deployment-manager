@@ -38,7 +38,6 @@ from package_parser import PackageParser
 from async_dispatcher import AsyncDispatcher
 from lifecycle_states import ApplicationState, PackageDeploymentState
 
-
 def milli_time():
     return int(round(time.time() * 1000))
 
@@ -453,6 +452,26 @@ class DeploymentManager(object):
         logging.info('get_application_summary')
         record = self._application_summary_registrar.get_summary_data(application)
         return record
+
+    def get_application_log(self, application, user_name):
+        application_owner = self._get_application_owner(application)
+        self._authorize(user_name, Resources.APPLICATION, application_owner, Actions.READ)
+
+        logging.info('get_application_log')
+        create_data = self._application_registrar.get_create_data(application)
+        log_data = self._application_creator.get_application_log(application, create_data)
+        return log_data
+
+
+    def get_application_state(self, application, user_name):
+        application_owner = self._get_application_owner(application)
+        self._authorize(user_name, Resources.APPLICATION, application_owner, Actions.READ)
+
+        logging.info('get_application_state')
+        create_data = self._application_registrar.get_create_data(application)
+        state_data = self._application_creator.get_application_state(application, create_data)
+        return state_data
+
 
     def create_application(self, package, application, overrides, user_name):
         logging.info('create_application')
