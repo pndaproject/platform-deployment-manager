@@ -86,6 +86,15 @@ class ApplicationCreator(object):
 
         return create_metadata
 
+    def restart_application(self, application_name, application_create_data):
+
+        logging.debug("restart_application: %s %s", application_name, application_create_data)
+
+        for component_type, component_create_data in application_create_data.items():
+            creator = self._load_creator(component_type)
+            for single_component_data in component_create_data:
+                creator.restart_component(application_name, single_component_data)
+
     def destroy_application(self, application_name, application_create_data):
 
         logging.debug("destroy_application: %s %s", application_name, application_create_data)
