@@ -185,7 +185,7 @@ class SparkStreamingCreator(Common):
         jar_path = '/'.join(app_path)
 
         self.create_spark_yml(jar_path, properties)
-        app_removal_path = staged_component_path.split('/')[:3]
+        app_removal_path = staged_component_path.split('/')[:4]
 
 
         undo_commands = []
