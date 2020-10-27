@@ -1,7 +1,7 @@
 argparse==1.2.1
 certifi==2017.4.17
 cffi==1.9.1
-cryptography==2.8
+cryptography==3.2
 enum34==1.1.6
 happybase==1.2.0
 idna==2.1
