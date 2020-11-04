@@ -185,7 +185,7 @@ class SparkStreamingCreator(Common):
         jar_path = '/'.join(app_path)
 
         self.create_spark_yml(jar_path, properties)
-        app_removal_path = staged_component_path.split('/')[:3]
+        app_removal_path = staged_component_path.split('/')[:4]
 
 
         undo_commands = []
@@ -195,6 +195,13 @@ class SparkStreamingCreator(Common):
         undo_commands.append('rm  %s\n' % service_script_install_path)
         logging.debug("uninstall commands: %s", undo_commands)
         return {'ssh': undo_commands, 'crdjson': jar_path}
+
+    def restart_component(self, application_name, create_data):
+        logging.debug("deleting_component: %s %s", application_name, json.dumps(create_data))
+        self.delete_custom_resource_object(application_name)
+        logging.debug("restarting_component: %s %s", application_name, json.dumps(create_data))
+        json_path = create_data['crdjson']
+        self.create_custom_resource_object("%s/%s.json" % (json_path,application_name))
 
     def destroy_component(self, application_name, create_data):
         logging.debug("destroy_component: %s %s", application_name, json.dumps(create_data))

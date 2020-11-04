@@ -302,6 +302,15 @@ class ApplicationHandler(BaseHandler):
 
         DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
 
+    @asynchronous
+    def post(self, name):
+        user_name = self.get_argument("user.name")
+        def do_call():
+            dm.restart_application(name, user_name)
+            self.send_accepted()
+
+        DISPATCHER.run_as_asynch(task=do_call, on_error=self.handle_error)
+
 
 # pylint: disable=C0103
 # pylint: disable=W0603

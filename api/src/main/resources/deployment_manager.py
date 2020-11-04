@@ -526,6 +526,27 @@ class DeploymentManager(object):
         # set the status:
         self._application_registrar.set_application_status(application, app_status, error_message)
 
+    def restart_application(self, application, user_name):
+        logging.info('restart_application')
+        with self._lock:
+            self._assert_application_status(application, [ApplicationState.CREATED, ApplicationState.STARTED])
+
+        def do_work_restart():
+            try:
+                self._state_change_event_application(application)
+                try:
+                    create_data = self._application_registrar.get_create_data(application)
+                    self._application_creator.restart_application(application, create_data)
+                    self._application_registrar.set_application_status(application, ApplicationState.STARTED)
+                except Exception as ex:
+                    self._handle_application_error(application, ex, ApplicationState.STARTED, "restarting")
+                    raise
+            finally:
+                self._clear_package_progress(application)
+                self._state_change_event_application(application)
+
+        self.dispatcher.run_as_asynch(task=do_work_restart)
+
     def delete_application(self, application, user_name):
         logging.info('delete_application')
         with self._lock:
