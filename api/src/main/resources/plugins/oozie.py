@@ -93,7 +93,7 @@ requested spark version" % self._config['oozie_spark_version']
         self.exec_cmds(mkdir_commands)
 
         os.system("cp -r %s %s"
-                % (staged_component_path + '/lib/*', component_install_path))
+                  % (staged_component_path + '/lib/*', component_install_path))
 
         copy_commands = []
         copy_commands.append('sudo mv  %s/%s %s/execute.sh' % (component_install_path, service_script, component_install_path))
@@ -120,7 +120,7 @@ requested spark version" % self._config['oozie_spark_version']
         # stop flink job and delete component from local
         if "flink_staged_path" in create_data:
             destroy_commands = ["python %s/flink-stop.py" % create_data["flink_staged_path"],
-                           "sudo rm -rf %s\n" % create_data["flink_staged_path"]]
+                                "sudo rm -rf %s\n" % create_data["flink_staged_path"]]
             self.exec_cmds(destroy_commands)
 
     def start_component(self, application_name, create_data):
@@ -160,7 +160,7 @@ requested spark version" % self._config['oozie_spark_version']
         properties['deployment_end'] = end.strftime("%Y-%m-%dT%H:%MZ")
 
         # for flink jobs, code need to be staged locally because both ssh action and flink client requires code to be present in local
-        if properties.get('component_job_type','') == 'flink':
+        if properties.get('component_job_type', '') == 'flink':
             self.stage_flink_components(application_name, component['component_name'], properties, staged_component_path)
 
         # insert required oozie properties
@@ -199,8 +199,8 @@ requested spark version" % self._config['oozie_spark_version']
             ret_data["flink_staged_path"] = properties["component_staged_path"]
 
         ret_data.update({'job_handle': undeploy['id'],
-                'component_hdfs_root': properties['component_hdfs_root'],
-                'application_user': properties['application_user']})
+                         'component_hdfs_root': properties['component_hdfs_root'],
+                         'application_user': properties['application_user']})
         return ret_data
 
     def _setup_queue_config(self, component, staged_component_path, properties):
